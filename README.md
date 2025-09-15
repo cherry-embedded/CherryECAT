@@ -39,7 +39,6 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 
 - **Slave**
 	- Must support COE
-	- Must support PDO assign
 	- Must support sdo complete access
 	- SII must have sync manager information
 

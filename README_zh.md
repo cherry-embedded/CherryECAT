@@ -39,7 +39,6 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 
 - 从站
 	- 必须支持 COE
-	- 必须支持 PDO assign
 	- 必须支持 sdo complete access
 	- SII 必须携带 sync manager 信息
 

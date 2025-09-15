@@ -530,7 +530,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         return ret;
     }
 
-    if (slave->config) {
+    if (slave->config && slave->sii.general.coe_details.enable_pdo_assign) {
         uint32_t data;
 
         /* Config PDO assignments for 0x1c12, 0x1c13
