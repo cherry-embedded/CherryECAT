@@ -41,7 +41,7 @@ void ec_osal_thread_resume(ec_osal_thread_t thread)
     rt_thread_resume((rt_thread_t)thread);
 }
 
-ec_osal_sem_t ec_osal_sem_create(uint32_t initial_count)
+ec_osal_sem_t ec_osal_sem_create(uint32_t max_count, uint32_t initial_count)
 {
     ec_osal_sem_t sem = (ec_osal_sem_t)rt_sem_create("ec_sem", initial_count, RT_IPC_FLAG_FIFO);
     if (sem == NULL) {
