@@ -510,6 +510,46 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         return 0;
     }
 
+    if (slave->requested_state == EC_SLAVE_STATE_BOOT) {
+        ec_sm_info_t sm_info[2];
+
+        sm_info[0].physical_start_address = slave->sii.boot_rx_mailbox_offset;
+        sm_info[0].control = 0x26;
+        sm_info[0].length = slave->sii.boot_rx_mailbox_size;
+        sm_info[0].enable = 0x0001;
+
+        sm_info[1].physical_start_address = slave->sii.boot_tx_mailbox_offset;
+        sm_info[1].control = 0x22;
+        sm_info[1].length = slave->sii.boot_tx_mailbox_size;
+        sm_info[1].enable = 0x0001;
+
+        // Config mailbox sm
+        ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * 2);
+        ec_datagram_zero(datagram);
+        for (uint8_t i = 0; i < 2; i++) {
+            ec_slave_sm_config(sm_info, datagram->data + EC_SYNC_PAGE_SIZE * i);
+        }
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        if (ret < 0) {
+            return ret;
+        }
+
+        slave->configured_rx_mailbox_offset = slave->sii.boot_rx_mailbox_offset;
+        slave->configured_rx_mailbox_size = slave->sii.boot_rx_mailbox_size;
+        slave->configured_tx_mailbox_offset = slave->sii.boot_tx_mailbox_offset;
+        slave->configured_tx_mailbox_size = slave->sii.boot_tx_mailbox_size;
+
+        ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_BOOT);
+        if (ret < 0) {
+            EC_SLAVE_LOG_ERR("Failed to change state to %s on slave %u\n",
+                             ec_state_string(slave->requested_state, 0), slave->index);
+            return ret;
+        }
+
+        return 0;
+    }
+
     // Config mailbox sm
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * 2);
     ec_datagram_zero(datagram);
