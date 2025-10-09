@@ -7,8 +7,17 @@
 
 #define EC_MBOX_READ_TIMEOUT (100 * 1000)
 
-uint8_t *ec_mailbox_fill_send(ec_slave_t *slave, ec_datagram_t *datagram, uint8_t type, uint16_t size)
+uint8_t *ec_mailbox_fill_send(ec_master_t *master,
+                              uint16_t slave_index,
+                              ec_datagram_t *datagram,
+                              uint8_t type,
+                              uint16_t size)
 {
+    ec_slave_t *slave;
+
+    slave = &master->slaves[slave_index];
+
+    EC_ASSERT_MSG(slave_index >= master->slave_count, "Invalid slave index");
     EC_ASSERT_MSG((EC_MBOX_HEADER_SIZE + size) <= slave->configured_rx_mailbox_size, "RX Mailbox size overflow");
 
     EC_WRITE_U16(datagram->data, size);                       // mailbox service data length
@@ -19,17 +28,37 @@ uint8_t *ec_mailbox_fill_send(ec_slave_t *slave, ec_datagram_t *datagram, uint8_
     return (datagram->data + EC_MBOX_HEADER_SIZE);
 }
 
-int ec_mailbox_send(ec_slave_t *slave, ec_datagram_t *datagram)
+int ec_mailbox_send(ec_master_t *master,
+                    uint16_t slave_index,
+                    ec_datagram_t *datagram)
 {
+    ec_slave_t *slave;
+
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
+
     ec_datagram_fpwr(datagram, slave->station_address, slave->configured_rx_mailbox_offset, slave->configured_rx_mailbox_size);
     datagram->netdev_idx = slave->netdev_idx;
     return ec_master_queue_ext_datagram(slave->master, datagram, true, true);
 }
 
-int ec_mailbox_read_status(ec_slave_t *slave, ec_datagram_t *datagram, uint32_t timeout_us)
+int ec_mailbox_read_status(ec_master_t *master,
+                           uint16_t slave_index,
+                           ec_datagram_t *datagram,
+                           uint32_t timeout_us)
 {
+    ec_slave_t *slave;
     uint32_t start_time;
     int ret;
+
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
 
     start_time = jiffies;
 
@@ -52,14 +81,26 @@ check_again:
     return 0;
 }
 
-int ec_mailbox_receive(ec_slave_t *slave, ec_datagram_t *datagram, uint8_t *type, uint32_t *size, uint32_t timeout_us)
+int ec_mailbox_receive(ec_master_t *master,
+                       uint16_t slave_index,
+                       ec_datagram_t *datagram,
+                       uint8_t *type,
+                       uint32_t *size,
+                       uint32_t timeout_us)
 {
+    ec_slave_t *slave;
     uint16_t code;
     uint32_t tmp_size;
     uint8_t tmp_type;
     int ret;
 
-    ret = ec_mailbox_read_status(slave, datagram, timeout_us);
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
+
+    ret = ec_mailbox_read_status(master, slave_index, datagram, timeout_us);
     if (ret < 0) {
         return ret;
     }

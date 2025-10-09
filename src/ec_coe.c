@@ -23,11 +23,11 @@ typedef ec_coe_download_segment_header_t ec_coe_upload_segment_header_t;
 
 /** CoE download request header size.
  */
-#define EC_COE_DOWN_REQ_HEADER_SIZE     (sizeof(ec_coe_download_common_header_t))
+#define EC_COE_DOWN_REQ_HEADER_SIZE (sizeof(ec_coe_download_common_header_t))
 
 /** CoE upload request header size.
  */
-#define EC_COE_UP_REQ_HEADER_SIZE       (sizeof(ec_coe_upload_common_header_t))
+#define EC_COE_UP_REQ_HEADER_SIZE (sizeof(ec_coe_upload_common_header_t))
 
 /** CoE download segment request header size.
  */
@@ -35,15 +35,16 @@ typedef ec_coe_download_segment_header_t ec_coe_upload_segment_header_t;
 
 /** CoE upload segment request header size.
  */
-#define EC_COE_UP_SEG_REQ_HEADER_SIZE   (sizeof(ec_coe_upload_segment_header_t))
+#define EC_COE_UP_SEG_REQ_HEADER_SIZE (sizeof(ec_coe_upload_segment_header_t))
 
 /** Minimum size of download segment.
  */
-#define EC_COE_DOWN_SEG_MIN_DATA_SIZE   7
+#define EC_COE_DOWN_SEG_MIN_DATA_SIZE 7
 
-#define EC_COE_TIMEOUT_US          (1000 * 1000) /* 1s */
+#define EC_COE_TIMEOUT_US (1000 * 1000) /* 1s */
 
-static int ec_coe_download_expedited(ec_slave_t *slave,
+static int ec_coe_download_expedited(ec_master_t *master,
+                                     uint16_t slave_index,
                                      ec_datagram_t *datagram,
                                      uint16_t index,
                                      uint8_t subindex,
@@ -57,7 +58,7 @@ static int ec_coe_download_expedited(ec_slave_t *slave,
     ec_coe_download_common_header_t *download_common;
     int ret;
 
-    data = ec_mailbox_fill_send(slave, datagram, EC_MBOX_TYPE_COE, EC_COE_DOWN_REQ_HEADER_SIZE);
+    data = ec_mailbox_fill_send(master, slave_index, datagram, EC_MBOX_TYPE_COE, EC_COE_DOWN_REQ_HEADER_SIZE);
 
     download_common = (ec_coe_download_common_header_t *)data;
     download_common->coe_header.number = 0;
@@ -74,12 +75,12 @@ static int ec_coe_download_expedited(ec_slave_t *slave,
 
     ec_memcpy(download_common->data, buf, size);
     memset(download_common->data + size, 0x00, 4 - size);
-    ret = ec_mailbox_send(slave, datagram);
+    ret = ec_mailbox_send(master, slave_index, datagram);
     if (ret < 0) {
         return ret;
     }
 
-    ret = ec_mailbox_receive(slave, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
     if (ret < 0) {
         return ret;
     }
@@ -96,7 +97,7 @@ static int ec_coe_download_expedited(ec_slave_t *slave,
 
     if (EC_READ_U16(data) >> 12 == EC_COE_SERVICE_SDO_REQUEST &&
         EC_READ_U8(data + 2) >> 5 == EC_COE_REQUEST_ABORT) {
-        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave->index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
+        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave_index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
         return -EC_ERR_COE_ABORT;
     }
 
@@ -110,7 +111,8 @@ static int ec_coe_download_expedited(ec_slave_t *slave,
     return 0;
 }
 
-static int ec_coe_download_common(ec_slave_t *slave,
+static int ec_coe_download_common(ec_master_t *master,
+                                  uint16_t slave_index,
                                   ec_datagram_t *datagram,
                                   uint16_t index,
                                   uint8_t subindex,
@@ -120,15 +122,11 @@ static int ec_coe_download_common(ec_slave_t *slave,
 {
     uint8_t *data;
     uint8_t mbox_proto;
-    uint32_t data_size, recv_size, max_data_size;
+    uint32_t recv_size;
     ec_coe_download_common_header_t *download_common;
     int ret;
 
-    max_data_size = slave->configured_rx_mailbox_size - EC_MBOX_HEADER_SIZE - EC_COE_DOWN_REQ_HEADER_SIZE;
-
-    data_size = MIN(size, max_data_size);
-
-    data = ec_mailbox_fill_send(slave, datagram, EC_MBOX_TYPE_COE, data_size + EC_COE_DOWN_REQ_HEADER_SIZE);
+    data = ec_mailbox_fill_send(master, slave_index, datagram, EC_MBOX_TYPE_COE, size + EC_COE_DOWN_REQ_HEADER_SIZE);
 
     download_common = (ec_coe_download_common_header_t *)data;
     download_common->coe_header.number = 0;
@@ -144,13 +142,13 @@ static int ec_coe_download_common(ec_slave_t *slave,
     download_common->subindex = complete_access ? 0x00 : subindex;
 
     ec_memcpy(download_common->data, &size, 4);
-    ec_memcpy(data + EC_COE_DOWN_REQ_HEADER_SIZE, buf, data_size);
-    ret = ec_mailbox_send(slave, datagram);
+    ec_memcpy(data + EC_COE_DOWN_REQ_HEADER_SIZE, buf, size);
+    ret = ec_mailbox_send(master, slave_index, datagram);
     if (ret < 0) {
         return ret;
     }
 
-    ret = ec_mailbox_receive(slave, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
     if (ret < 0) {
         return ret;
     }
@@ -167,7 +165,7 @@ static int ec_coe_download_common(ec_slave_t *slave,
 
     if (EC_READ_U16(data) >> 12 == EC_COE_SERVICE_SDO_REQUEST &&
         EC_READ_U8(data + 2) >> 5 == EC_COE_REQUEST_ABORT) {
-        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave->index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
+        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave_index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
         return -EC_ERR_COE_ABORT;
     }
 
@@ -181,7 +179,8 @@ static int ec_coe_download_common(ec_slave_t *slave,
     return 0;
 }
 
-static int ec_coe_download_segment(ec_slave_t *slave,
+static int ec_coe_download_segment(ec_master_t *master,
+                                   uint16_t slave_index,
                                    ec_datagram_t *datagram,
                                    const void *seg_data,
                                    uint16_t size,
@@ -203,7 +202,7 @@ static int ec_coe_download_segment(ec_slave_t *slave,
         data_size = EC_COE_DOWN_SEG_MIN_DATA_SIZE;
     }
 
-    data = ec_mailbox_fill_send(slave, datagram, EC_MBOX_TYPE_COE, data_size + EC_COE_DOWN_SEG_REQ_HEADER_SIZE);
+    data = ec_mailbox_fill_send(master, slave_index, datagram, EC_MBOX_TYPE_COE, data_size + EC_COE_DOWN_SEG_REQ_HEADER_SIZE);
 
     download_seg = (ec_coe_download_segment_header_t *)data;
     download_seg->coe_header.number = 0;
@@ -220,12 +219,12 @@ static int ec_coe_download_segment(ec_slave_t *slave,
         memset(data + EC_COE_DOWN_SEG_REQ_HEADER_SIZE + size, 0x00, EC_COE_DOWN_SEG_MIN_DATA_SIZE - size);
     }
 
-    ret = ec_mailbox_send(slave, datagram);
+    ret = ec_mailbox_send(master, slave_index, datagram);
     if (ret < 0) {
         return ret;
     }
 
-    ret = ec_mailbox_receive(slave, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
     if (ret < 0) {
         return ret;
     }
@@ -242,7 +241,7 @@ static int ec_coe_download_segment(ec_slave_t *slave,
 
     if (EC_READ_U16(data) >> 12 == EC_COE_SERVICE_SDO_REQUEST &&
         EC_READ_U8(data + 2) >> 5 == EC_COE_REQUEST_ABORT) {
-        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave->index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
+        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave_index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
         return -EC_ERR_COE_ABORT;
     }
 
@@ -258,7 +257,8 @@ static int ec_coe_download_segment(ec_slave_t *slave,
     return 0;
 }
 
-int ec_coe_download(ec_slave_t *slave,
+int ec_coe_download(ec_master_t *master,
+                    uint16_t slave_index,
                     ec_datagram_t *datagram,
                     uint16_t index,
                     uint8_t subindex,
@@ -266,22 +266,29 @@ int ec_coe_download(ec_slave_t *slave,
                     uint32_t size,
                     bool complete_access)
 {
+    ec_slave_t *slave;
     uint8_t *ptr;
     uint32_t seg_size, max_data_size;
     bool toggle;
     bool last;
     int ret;
 
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
+
     ptr = (uint8_t *)buf;
 
     if (size <= 4) {
-        return ec_coe_download_expedited(slave, datagram, index, subindex, ptr, size, complete_access);
+        return ec_coe_download_expedited(master, slave_index, datagram, index, subindex, ptr, size, complete_access);
     } else {
         max_data_size = slave->configured_rx_mailbox_size - EC_MBOX_HEADER_SIZE - EC_COE_DOWN_REQ_HEADER_SIZE;
         if (size <= max_data_size) {
-            return ec_coe_download_common(slave, datagram, index, subindex, ptr, size, complete_access);
+            return ec_coe_download_common(master, slave_index, datagram, index, subindex, ptr, size, complete_access);
         } else {
-            ret = ec_coe_download_common(slave, datagram, index, subindex, ptr, size, complete_access);
+            ret = ec_coe_download_common(master, slave_index, datagram, index, subindex, ptr, max_data_size, complete_access);
             if (ret < 0) {
                 return ret;
             }
@@ -294,10 +301,10 @@ int ec_coe_download(ec_slave_t *slave,
 
             while (1) {
                 seg_size = MIN(size, max_data_size);
-                if (seg_size < max_data_size) {
+                if (size <= max_data_size) {
                     last = true;
                 }
-                ret = ec_coe_download_segment(slave, datagram, ptr, seg_size, toggle, last);
+                ret = ec_coe_download_segment(master, slave_index, datagram, ptr, seg_size, toggle, last);
                 if (ret < 0) {
                     return ret;
                 }
@@ -312,7 +319,8 @@ int ec_coe_download(ec_slave_t *slave,
     }
 }
 
-int ec_coe_upload(ec_slave_t *slave,
+int ec_coe_upload(ec_master_t *master,
+                  uint16_t slave_index,
                   ec_datagram_t *datagram,
                   uint16_t index,
                   uint8_t subindex,
@@ -337,7 +345,7 @@ int ec_coe_upload(ec_slave_t *slave,
 
     ptr = (uint8_t *)buf;
 
-    data = ec_mailbox_fill_send(slave, datagram, EC_MBOX_TYPE_COE, EC_COE_UP_REQ_HEADER_SIZE);
+    data = ec_mailbox_fill_send(master, slave_index, datagram, EC_MBOX_TYPE_COE, EC_COE_UP_REQ_HEADER_SIZE);
 
     upload_common = (ec_coe_upload_common_header_t *)data;
     upload_common->coe_header.number = 0;
@@ -353,12 +361,12 @@ int ec_coe_upload(ec_slave_t *slave,
     upload_common->subindex = complete_access ? 0x00 : subindex;
 
     memset(upload_common->data, 0x00, 4);
-    ret = ec_mailbox_send(slave, datagram);
+    ret = ec_mailbox_send(master, slave_index, datagram);
     if (ret < 0) {
         return ret;
     }
 
-    ret = ec_mailbox_receive(slave, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
     if (ret < 0) {
         return ret;
     }
@@ -375,7 +383,7 @@ int ec_coe_upload(ec_slave_t *slave,
 
     if (EC_READ_U16(data) >> 12 == EC_COE_SERVICE_SDO_REQUEST &&
         EC_READ_U8(data + 2) >> 5 == EC_COE_REQUEST_ABORT) {
-        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave->index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
+        EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave_index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
         return -EC_ERR_COE_ABORT;
     }
 
@@ -437,7 +445,7 @@ int ec_coe_upload(ec_slave_t *slave,
 
         if (offset < total_size) {
             while (1) {
-                data = ec_mailbox_fill_send(slave, datagram, EC_MBOX_TYPE_COE, EC_COE_UP_REQ_HEADER_SIZE);
+                data = ec_mailbox_fill_send(master, slave_index, datagram, EC_MBOX_TYPE_COE, EC_COE_UP_REQ_HEADER_SIZE);
 
                 upload_seg = (ec_coe_upload_segment_header_t *)data;
                 upload_seg->coe_header.number = 0;
@@ -448,12 +456,12 @@ int ec_coe_upload(ec_slave_t *slave,
                 upload_seg->sdo_header.command = EC_COE_REQUEST_SEGMENT_UPLOAD;
                 upload_seg->sdo_header.segdata_size = 0;
                 memset(data + EC_COE_DOWN_SEG_REQ_HEADER_SIZE, 0x00, 7);
-                ret = ec_mailbox_send(slave, datagram);
+                ret = ec_mailbox_send(master, slave_index, datagram);
                 if (ret < 0) {
                     return ret;
                 }
 
-                ret = ec_mailbox_receive(slave, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+                ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
                 if (ret < 0) {
                     return ret;
                 }
@@ -470,7 +478,7 @@ int ec_coe_upload(ec_slave_t *slave,
 
                 if (EC_READ_U16(data) >> 12 == EC_COE_SERVICE_SDO_REQUEST &&
                     EC_READ_U8(data + 2) >> 5 == EC_COE_REQUEST_ABORT) {
-                    EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave->index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
+                    EC_SLAVE_LOG_ERR("Slave %u SDO abort code: 0x%08x (%s)\n", slave_index, EC_READ_U32(data + 6), ec_sdo_abort_string(EC_READ_U32(data + 6)));
                     return -EC_ERR_COE_ABORT;
                 }
 

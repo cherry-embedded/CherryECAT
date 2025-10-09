@@ -115,13 +115,20 @@ sii_check:
     return 0;
 }
 
-int ec_sii_read(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, uint32_t *buf, uint32_t len)
+int ec_sii_read(ec_master_t *master, uint16_t slave_index, ec_datagram_t *datagram, uint16_t woffset, uint32_t *buf, uint32_t len)
 {
+    ec_slave_t *slave;
     int ret;
 
     if (len % 4) {
         return -EC_ERR_INVAL;
     }
+
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
 
     ret = ec_sii_assign_master(slave, datagram);
     if (ret < 0) {
@@ -138,13 +145,20 @@ int ec_sii_read(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, ui
     return esc_sii_assign_pdi(slave, datagram);
 }
 
-int ec_sii_write(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, const uint16_t *buf, uint32_t len)
+int ec_sii_write(ec_master_t *master, uint16_t slave_index, ec_datagram_t *datagram, uint16_t woffset, const uint16_t *buf, uint32_t len)
 {
+    ec_slave_t *slave;
     int ret;
 
     if (len % 2) {
         return -EC_ERR_INVAL;
     }
+
+    if (slave_index >= master->slave_count) {
+        return -EC_ERR_INVAL;
+    }
+
+    slave = &master->slaves[slave_index];
 
     ret = ec_sii_assign_master(slave, datagram);
     if (ret < 0) {

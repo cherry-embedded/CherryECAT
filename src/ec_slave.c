@@ -14,11 +14,11 @@
 
 /** Maximum count to wait for clock discipline.
  */
-#define EC_DC_SYNC_WATI_COUNT  (15000)
+#define EC_DC_SYNC_WATI_COUNT (15000)
 
 /** Time offset (in ns), that is added to cyclic start time.
  */
-#define EC_DC_START_OFFSET     100000000ULL
+#define EC_DC_START_OFFSET 100000000ULL
 
 static void ec_slave_init(ec_slave_t *slave,
                           uint32_t slave_index,
@@ -270,21 +270,21 @@ void ec_slave_calc_transmission_delays(ec_slave_t *slave, uint32_t *delay)
     *delay = *delay + slave->ports[0].delay_to_next_dc;
 }
 
-static int ec_slave_state_clear_ack_error(ec_master_t *master, ec_slave_t *slave, ec_slave_state_t requested_state)
+static int ec_slave_state_clear_ack_error(ec_slave_t *slave, ec_slave_state_t requested_state)
 {
     ec_datagram_t *datagram;
     int ret;
     uint64_t start_time;
     uint32_t status_code;
 
-    datagram = &master->main_datagram;
+    datagram = &slave->master->main_datagram;
 
     start_time = jiffies;
 
     ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_STAT_CODE), 2);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -296,7 +296,7 @@ static int ec_slave_state_clear_ack_error(ec_master_t *master, ec_slave_t *slave
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_CTRL), 2);
     EC_WRITE_U16(datagram->data, slave->current_state);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -305,7 +305,7 @@ repeat_check:
     ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_STAT), 2);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -341,14 +341,14 @@ repeat_check:
  *    and write AL control register to acknowledge error, then repeat 2
  * 5. if state is changed to other state, repeat step 2
 */
-static int ec_slave_state_change(ec_master_t *master, ec_slave_t *slave, ec_slave_state_t requested_state)
+static int ec_slave_state_change(ec_slave_t *slave, ec_slave_state_t requested_state)
 {
     ec_datagram_t *datagram;
     int ret;
     uint32_t start_time;
     ec_slave_state_t old_state;
 
-    datagram = &master->main_datagram;
+    datagram = &slave->master->main_datagram;
 
     old_state = slave->current_state;
     start_time = jiffies;
@@ -356,7 +356,7 @@ static int ec_slave_state_change(ec_master_t *master, ec_slave_t *slave, ec_slav
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_CTRL), 2);
     EC_WRITE_U16(datagram->data, requested_state);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -365,7 +365,7 @@ repeat_check:
     ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_STAT), 2);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -379,7 +379,7 @@ repeat_check:
 
     if (slave->current_state != old_state) {
         if ((slave->current_state & 0x0F) == (old_state & 0x0F)) { // acknowledge bit enable
-            return ec_slave_state_clear_ack_error(master, slave, requested_state);
+            return ec_slave_state_clear_ack_error(slave, requested_state);
         } else {
             old_state = slave->current_state;
             if ((jiffies - start_time) > ec_slave_state_change_timeout_us(slave->current_state, requested_state)) {
@@ -465,15 +465,15 @@ static int ec_slave_config_dc_systime_and_delay(ec_slave_t *slave)
     return 0;
 }
 
-static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
+static int ec_slave_config(ec_slave_t *slave)
 {
     ec_datagram_t *datagram;
     uint64_t start_time;
     int ret;
 
-    datagram = &master->main_datagram;
+    datagram = &slave->master->main_datagram;
 
-    ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_INIT);
+    ret = ec_slave_state_change(slave, EC_SLAVE_STATE_INIT);
     if (ret < 0) {
         return ret;
     }
@@ -482,7 +482,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->FMMU[0]), EC_FMMU_PAGE_SIZE * slave->base_fmmu_count);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -491,7 +491,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * slave->base_sync_count);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -500,7 +500,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->CYC_UNIT_CTRL), 2);
     ec_datagram_zero(datagram);
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -530,7 +530,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
             ec_slave_sm_config(&sm_info[i], datagram->data + EC_SYNC_PAGE_SIZE * i);
         }
         datagram->netdev_idx = slave->netdev_idx;
-        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
             return ret;
         }
@@ -540,7 +540,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         slave->configured_tx_mailbox_offset = slave->sii.boot_tx_mailbox_offset;
         slave->configured_tx_mailbox_size = slave->sii.boot_tx_mailbox_size;
 
-        ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_BOOT);
+        ret = ec_slave_state_change(slave, EC_SLAVE_STATE_BOOT);
         if (ret < 0) {
             EC_SLAVE_LOG_ERR("Failed to change state to %s on slave %u\n",
                              ec_state_string(slave->requested_state, 0), slave->index);
@@ -557,7 +557,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         ec_slave_sm_config(&slave->sm_info[i], datagram->data + EC_SYNC_PAGE_SIZE * i);
     }
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -567,7 +567,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
     slave->configured_tx_mailbox_offset = slave->sm_info[EC_SM_INDEX_MBX_READ].physical_start_address;
     slave->configured_tx_mailbox_size = slave->sm_info[EC_SM_INDEX_MBX_READ].length;
 
-    ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_PREOP);
+    ret = ec_slave_state_change(slave, EC_SLAVE_STATE_PREOP);
     if (ret < 0) {
         EC_SLAVE_LOG_ERR("Failed to change state to %s on slave %u\n",
                          ec_state_string(slave->requested_state, 0), slave->index);
@@ -584,35 +584,35 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
          * Set number of assigned entries
         */
         data = 0;
-        ret = ec_coe_download(slave, datagram, 0x1c12, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, 2, false);
         if (ret < 0) {
             return ret;
         }
-        ret = ec_coe_download(slave, datagram, 0x1c13, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, 2, false);
         if (ret < 0) {
             return ret;
         }
         for (uint32_t i = 0; i < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count; i++) {
             data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i];
-            ret = ec_coe_download(slave, datagram, 0x1c12, 0x01 + i, &data, 2, false);
+            ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x01 + i, &data, 2, false);
             if (ret < 0) {
                 return ret;
             }
         }
         for (uint32_t i = 0; i < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count; i++) {
             data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i];
-            ret = ec_coe_download(slave, datagram, 0x1c13, 0x01 + i, &data, 2, false);
+            ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x01 + i, &data, 2, false);
             if (ret < 0) {
                 return ret;
             }
         }
         data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count;
-        ret = ec_coe_download(slave, datagram, 0x1c12, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, 2, false);
         if (ret < 0) {
             return ret;
         }
         data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count;
-        ret = ec_coe_download(slave, datagram, 0x1c13, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, 2, false);
         if (ret < 0) {
             return ret;
         }
@@ -626,21 +626,21 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         if (slave->sii.general.coe_details.enable_pdo_configuration) {
             for (uint32_t i = 0; i < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count; i++) {
                 data = 0;
-                ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
+                ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
                 if (ret < 0) {
                     return ret;
                 }
 
                 for (uint32_t j = 0; j < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[i].count; j++) {
                     data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[i].entry[j];
-                    ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x01 + j, &data, 4, false);
+                    ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x01 + j, &data, 4, false);
                     if (ret < 0) {
                         return ret;
                     }
                 }
 
                 data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[i].count;
-                ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
+                ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
                 if (ret < 0) {
                     return ret;
                 }
@@ -648,21 +648,21 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
 
             for (uint32_t i = 0; i < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count; i++) {
                 data = 0;
-                ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
+                ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
                 if (ret < 0) {
                     return ret;
                 }
 
                 for (uint32_t j = 0; j < slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[i].count; j++) {
                     data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[i].entry[j];
-                    ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x01 + j, &data, 4, false);
+                    ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x01 + j, &data, 4, false);
                     if (ret < 0) {
                         return ret;
                     }
                 }
 
                 data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[i].count;
-                ret = ec_coe_download(slave, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
+                ret = ec_coe_download(slave->master, slave->index, datagram, slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[i], 0x00, &data, 1, false);
                 if (ret < 0) {
                     return ret;
                 }
@@ -682,7 +682,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         ec_slave_sm_config(&slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT + i], datagram->data + EC_SYNC_PAGE_SIZE * i);
     }
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -693,7 +693,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         ec_slave_fmmu_config(&slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT + i], datagram->data + EC_FMMU_PAGE_SIZE * i);
     }
     datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
     if (ret < 0) {
         return ret;
     }
@@ -710,7 +710,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         EC_WRITE_U32(datagram->data, slave->config->dc_sync[0].cycle_time);
         EC_WRITE_U32(datagram->data + 4, slave->config->dc_sync[1].cycle_time);
         datagram->netdev_idx = slave->netdev_idx;
-        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
             return ret;
         }
@@ -720,7 +720,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->SYS_TIME_DIFF), 4);
         ec_datagram_zero(datagram);
         datagram->netdev_idx = slave->netdev_idx;
-        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
             return ret;
         }
@@ -748,7 +748,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
 
         EC_WRITE_U64(datagram->data, dc_start_time);
         datagram->netdev_idx = slave->netdev_idx;
-        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
             return ret;
         }
@@ -756,13 +756,13 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->CYC_UNIT_CTRL), 2);
         EC_WRITE_U16(datagram->data, slave->config->dc_assign_activate);
         datagram->netdev_idx = slave->netdev_idx;
-        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
             return ret;
         }
     }
 
-    ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_SAFEOP);
+    ret = ec_slave_state_change(slave, EC_SLAVE_STATE_SAFEOP);
     if (ret < 0) {
         EC_SLAVE_LOG_ERR("Failed to change state to %s on slave %u\n",
                          ec_state_string(slave->requested_state, 0), slave->index);
@@ -774,7 +774,7 @@ static int ec_slave_config(ec_master_t *master, ec_slave_t *slave)
         return 0;
     }
 
-    ret = ec_slave_state_change(master, slave, EC_SLAVE_STATE_OP);
+    ret = ec_slave_state_change(slave, EC_SLAVE_STATE_OP);
     if (ret < 0) {
         EC_SLAVE_LOG_ERR("Failed to change state to %s on slave %u\n",
                          ec_state_string(slave->requested_state, 0), slave->index);
@@ -930,7 +930,7 @@ static void ec_master_scan_slaves_state(ec_master_t *master)
         }
 
         if (slave->current_state & EC_SLAVE_STATE_ACK_ERR) {
-            ret = ec_slave_state_clear_ack_error(master, slave, slave->requested_state);
+            ret = ec_slave_state_clear_ack_error(slave, slave->requested_state);
             if (ret < 0) {
                 continue;
             }
@@ -939,10 +939,9 @@ static void ec_master_scan_slaves_state(ec_master_t *master)
         }
 
         if (((slave->requested_state != slave->current_state) && (slave->alstatus_code == 0)) || slave->force_update) {
-            ret = ec_slave_config(master, slave);
+            ret = ec_slave_config(slave);
             if (ret < 0) {
                 EC_SLAVE_LOG_ERR("Failed to configure slave %u\n", slave->index);
-                continue;
             }
             slave->force_update = false;
         }
@@ -970,6 +969,7 @@ void ec_slaves_scanning(ec_master_t *master)
             EC_LOG_INFO("Detect link down on %s\n",
                         master->netdev[netdev_idx]->name);
 
+            ec_osal_mutex_take(master->scan_lock);
             ec_master_clear_slaves(master);
 
             for (uint8_t i = EC_NETDEV_MAIN; i < CONFIG_EC_MAX_NETDEVS; i++) {
@@ -977,6 +977,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 master->slaves_responding[i] = 0;
             }
             master->scan_done = false;
+            ec_osal_mutex_give(master->scan_lock);
         }
         master->link_state[netdev_idx] = master->netdev[netdev_idx]->link_state;
     }
@@ -1016,6 +1017,8 @@ void ec_slaves_scanning(ec_master_t *master)
 
         rescan_required = 0;
 
+        ec_osal_mutex_take(master->scan_lock);
+
         master->scan_done = false;
         EC_LOG_INFO("Rescanning bus...\n");
 
@@ -1028,13 +1031,13 @@ void ec_slaves_scanning(ec_master_t *master)
         }
 
         if (!count) {
-            return;
+            goto mutex_unlock;
         }
 
         master->slaves = ec_osal_malloc(sizeof(ec_slave_t) * count);
         if (!master->slaves) {
             EC_LOG_ERR("Failed to allocate memory for slaves\n");
-            return;
+            goto mutex_unlock;
         }
 
         master->slave_count = count;
@@ -1052,6 +1055,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 autoinc_address++;
             }
         }
+        ec_osal_mutex_give(master->scan_lock);
 
         for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             if (master->slaves_responding[netdev_idx] == 0) {
@@ -1064,7 +1068,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_LOG_ERR("Failed to clear station address on %s link\n", master->netdev[netdev_idx]->name);
-                return;
+                goto mutex_unlock;
             }
 
             // Clear recevice time for dc measure delays
@@ -1074,7 +1078,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_LOG_ERR("Failed to clear receive time on %s link\n", master->netdev[netdev_idx]->name);
-                return;
+                goto mutex_unlock;
             }
         }
 
@@ -1090,7 +1094,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_LOG_ERR("Failed to set station address on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
 
             // Read AL state
@@ -1100,7 +1104,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_LOG_ERR("Failed to read AL status on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
 
             // Read base information
@@ -1110,7 +1114,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_SLAVE_LOG_ERR("Failed to read base on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
 
             slave->base_type = EC_READ_U8(datagram->data);
@@ -1150,7 +1154,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 ret = ec_master_queue_ext_datagram(master, datagram, true, true);
                 if (ret < 0) {
                     EC_SLAVE_LOG_ERR("Failed to read DC capabilities on slave %u\n", slave->index);
-                    return;
+                    goto mutex_unlock;
                 }
 
                 if (datagram->working_counter == 1) {
@@ -1168,7 +1172,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 ret = ec_master_queue_ext_datagram(master, datagram, true, true);
                 if (ret < 0) {
                     EC_SLAVE_LOG_ERR("Failed to read DC receive times on slave %u\n", slave->index);
-                    return;
+                    goto mutex_unlock;
                 }
 
                 for (uint8_t i = 0; i < EC_MAX_PORTS; i++) {
@@ -1184,7 +1188,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ret = ec_master_queue_ext_datagram(master, datagram, true, true);
             if (ret < 0) {
                 EC_SLAVE_LOG_ERR("Failed to read data link status on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
 
             uint16_t dl_status = EC_READ_U16(datagram->data);
@@ -1204,10 +1208,10 @@ void ec_slaves_scanning(ec_master_t *master)
 
             // Read SII category headers to determine full SII size
             do {
-                ret = ec_sii_read(slave, datagram, sii_offset, &sii_data, 4);
+                ret = ec_sii_read(master, slave_index, datagram, sii_offset, &sii_data, 4);
                 if (ret < 0) {
                     EC_SLAVE_LOG_ERR("Failed to read SII category header on slave %u\n", slave->index);
-                    return;
+                    goto mutex_unlock;
                 }
 
                 cat_type = sii_data & 0xFFFF;
@@ -1223,15 +1227,15 @@ void ec_slaves_scanning(ec_master_t *master)
             slave->sii_image = ec_osal_malloc(slave->sii_nwords * 2);
             if (!slave->sii_image) {
                 EC_LOG_ERR("Failed to allocate memory for SII on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
             memset(slave->sii_image, 0, slave->sii_nwords * 2);
 
             // Read full SII and parse it
-            ret = ec_sii_read(slave, datagram, 0x0000, (uint32_t *)slave->sii_image, slave->sii_nwords * 2);
+            ret = ec_sii_read(master, slave_index, datagram, 0x0000, (uint32_t *)slave->sii_image, slave->sii_nwords * 2);
             if (ret < 0) {
                 EC_SLAVE_LOG_ERR("Failed to read SII category header on slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
 
             slave->sii.aliasaddr =
@@ -1282,7 +1286,7 @@ void ec_slaves_scanning(ec_master_t *master)
                         ret = ec_slave_fetch_sii_strings(slave, (uint8_t *)cat_data, cat_size * 2);
                         if (ret < 0) {
                             EC_SLAVE_LOG_ERR("Failed to fetch SII strings on slave %u\n", slave->index);
-                            return;
+                            goto mutex_unlock;
                         }
                         break;
                     case EC_SII_TYPE_GENERAL:
@@ -1321,10 +1325,10 @@ void ec_slaves_scanning(ec_master_t *master)
 
             EC_SLAVE_LOG_INFO("Slave %u parse eeprom success\n", slave->index);
 
-            ret = ec_slave_config(master, slave);
+            ret = ec_slave_config(slave);
             if (ret < 0) {
                 EC_SLAVE_LOG_ERR("Failed to configure slave %u\n", slave->index);
-                return;
+                goto mutex_unlock;
             }
         }
 
@@ -1332,6 +1336,9 @@ void ec_slaves_scanning(ec_master_t *master)
         master->scan_done = true;
 
         ec_master_calc_dc(master);
+
+    mutex_unlock:
+        ec_osal_mutex_give(master->scan_lock);
     }
 
     if (master->slave_count && master->scan_done) {

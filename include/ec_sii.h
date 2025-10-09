@@ -34,7 +34,7 @@ typedef struct ec_sii {
     uint32_t string_count; /**< Number of SII strings. */
 } ec_sii_t;
 
-int ec_sii_read(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, uint32_t *buf, uint32_t len);
-int ec_sii_write(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, const uint16_t *buf, uint32_t len);
+int ec_sii_read(ec_master_t *master, uint16_t slave_index, ec_datagram_t *datagram, uint16_t woffset, uint32_t *buf, uint32_t len);
+int ec_sii_write(ec_master_t *master, uint16_t slave_index, ec_datagram_t *datagram, uint16_t woffset, const uint16_t *buf, uint32_t len);
 
 #endif

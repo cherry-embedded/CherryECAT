@@ -6,7 +6,8 @@
 #ifndef EC_COE_H
 #define EC_COE_H
 
-int ec_coe_download(ec_slave_t *slave,
+int ec_coe_download(ec_master_t *master,
+                    uint16_t slave_index,
                     ec_datagram_t *datagram,
                     uint16_t index,
                     uint8_t subindex,
@@ -14,7 +15,8 @@ int ec_coe_download(ec_slave_t *slave,
                     uint32_t size,
                     bool complete_access);
 
-int ec_coe_upload(ec_slave_t *slave,
+int ec_coe_upload(ec_master_t *master,
+                  uint16_t slave_index,
                   ec_datagram_t *datagram,
                   uint16_t index,
                   uint8_t subindex,

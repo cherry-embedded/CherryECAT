@@ -771,12 +771,10 @@ int ethercat(int argc, const char **argv)
         int ret;
 
         uint32_t slave_idx = atoi(argv[3]);
-        if (slave_idx >= global_cmd_master->slave_count) {
-            EC_LOG_RAW("No slaves found\n");
-            return -1;
-        }
+
         ec_datagram_init(&datagram, 512);
-        ret = ec_coe_upload(&global_cmd_master->slaves[slave_idx],
+        ret = ec_coe_upload(global_cmd_master,
+                            slave_idx,
                             &datagram,
                             strtoul(argv[4], NULL, 16),
                             argc >= 6 ? strtoul(argv[5], NULL, 16) : 0x00,
@@ -800,10 +798,6 @@ int ethercat(int argc, const char **argv)
         int ret;
 
         uint32_t slave_idx = atoi(argv[3]);
-        if (slave_idx >= global_cmd_master->slave_count) {
-            EC_LOG_RAW("No slaves found\n");
-            return -1;
-        }
         u32data = strtoul(argv[6], NULL, 16);
 
         if (u32data < 0xff)
@@ -814,7 +808,8 @@ int ethercat(int argc, const char **argv)
             size = 4;
 
         ec_datagram_init(&datagram, 512);
-        ret = ec_coe_download(&global_cmd_master->slaves[slave_idx],
+        ret = ec_coe_download(global_cmd_master,
+                              slave_idx,
                               &datagram,
                               strtoul(argv[4], NULL, 16),
                               strtoul(argv[5], NULL, 16),
@@ -842,20 +837,23 @@ int ethercat(int argc, const char **argv)
         return 0;
     } else if (argc >= 5 && strcmp(argv[1], "sii_write") == 0) {
         // ethercat sii_write -p [slave_idx]
-        uint32_t slave_idx = atoi(argv[3]);
-        if (slave_idx >= global_cmd_master->slave_count) {
-            EC_LOG_RAW("No slaves found\n");
-            return -1;
-        }
+        int ret;
         static ec_datagram_t datagram;
+        extern unsigned char cherryecat_eepromdata[2048];
 
         ec_datagram_init(&datagram, 4096);
 
-        extern unsigned char cherryecat_eepromdata[2048];
+        uint32_t slave_idx = atoi(argv[3]);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
-        ec_sii_write(&global_cmd_master->slaves[slave_idx], &datagram, 0x0000, (const uint16_t *)cherryecat_eepromdata, sizeof(cherryecat_eepromdata));
+        ret = ec_sii_write(global_cmd_master, slave_idx, &datagram, 0x0000, (const uint16_t *)cherryecat_eepromdata, sizeof(cherryecat_eepromdata));
         ec_osal_mutex_give(global_cmd_master->scan_lock);
+
+        if (ret < 0) {
+            EC_SLAVE_LOG_ERR("Slave %u sii_write failed: %d\n", slave_idx, ret);
+        } else {
+            EC_LOG_RAW("Slave %u sii write success\n", slave_idx);
+        }
 
         ec_datagram_clear(&datagram);
         return 0;
@@ -952,10 +950,6 @@ int ethercat(int argc, const char **argv)
         uint32_t size;
         int ret;
         uint32_t slave_idx = atoi(argv[3]);
-        if (slave_idx >= global_cmd_master->slave_count) {
-            EC_LOG_RAW("No slaves found\n");
-            return -1;
-        }
         const char *filename = argv[4];
         uint32_t password = strtoul(argv[5], NULL, 16);
 
@@ -970,7 +964,7 @@ int ethercat(int argc, const char **argv)
         EC_SLAVE_LOG_INFO("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
-        ret = ec_foe_write(&global_cmd_master->slaves[slave_idx], &datagram, filename, password, hexdata, size);
+        ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size);
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
@@ -987,10 +981,6 @@ int ethercat(int argc, const char **argv)
         uint32_t size;
         int ret;
         uint32_t slave_idx = atoi(argv[3]);
-        if (slave_idx >= global_cmd_master->slave_count) {
-            EC_LOG_RAW("No slaves found\n");
-            return -1;
-        }
         const char *filename = argv[4];
         uint32_t password = strtoul(argv[5], NULL, 16);
 
@@ -1001,7 +991,7 @@ int ethercat(int argc, const char **argv)
         ec_datagram_init(&datagram, 4096);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
-        ret = ec_foe_read(&global_cmd_master->slaves[slave_idx], &datagram, filename, password, hexdata, sizeof(hexdata), &size);
+        ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size);
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
