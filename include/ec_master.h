@@ -75,7 +75,7 @@ typedef struct {
 #endif
     uint32_t expected_working_counter;
     ec_slave_t *slave;
-} ec_cyclic_datagram_t;
+} ec_pdo_datagram_t;
 
 typedef struct ec_master {
     uint8_t index;
@@ -91,8 +91,8 @@ typedef struct ec_master {
 
     ec_datagram_t main_datagram; /**< Main datagram for slave scan & state change & config & sii */
 
-    ec_dlist_t datagram_queue;        /**< Queue of pending datagrams*/
-    ec_dlist_t cyclic_datagram_queue; /**< Queue of cyclic datagrams*/
+    ec_dlist_t datagram_queue;     /**< Queue of pending datagrams*/
+    ec_dlist_t pdo_datagram_queue; /**< Queue of pdo datagrams*/
     uint8_t datagram_index;
 
     ec_slave_t *dc_ref_clock;                /**< DC reference clock slave. */
