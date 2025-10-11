@@ -1,0 +1,1 @@
+Refer to https://github.com/sakumisu/sdk-bsp-rzn2l-etherkit/tree/master/projects/etherkit_ethercat_cherryecat

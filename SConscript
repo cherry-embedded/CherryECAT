@@ -23,6 +23,12 @@ src += Glob('src/ec_timestamp.c')
 src += Glob('src/phy/chry_phy.c')
 src += Glob('osal/ec_osal_rtthread.c')
 
+if GetDepend(['PKG_CHERRYECAT_NETDEV_HPMICRO']):
+    src += Glob('port/netdev_hpmicro.c')
+
+if GetDepend(['PKG_CHERRYECAT_NETDEV_RENESAS']):
+    src += Glob('port/netdev_renesas.c')
+
 group = DefineGroup('CherryECAT', src, depend = ['PKG_USING_CHERRYECAT'], LIBS = LIBS, LIBPATH=LIBPATH, CPPPATH = path, CPPDEFINES = CPPDEFINES)
 
 Return('group')

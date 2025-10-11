@@ -100,6 +100,7 @@ Generating C code...
 ## 支持的开发板
 
 - HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
+- RT-Thread RZN2L-EtherKit
 
 ## 联系
 

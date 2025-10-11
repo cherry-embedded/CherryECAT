@@ -100,6 +100,7 @@ Generating C code...
 ## Support Boards
 
 - HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
+- RT-Thread RZN2L-EtherKit
 
 ## Contact
 
