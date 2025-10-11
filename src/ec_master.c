@@ -384,6 +384,22 @@ static void ec_netdev_linkpoll_timer(void *argument)
     }
 }
 
+static int ec_master_enter_idle(ec_master_t *master)
+{
+    master->phase = EC_IDLE;
+    master->nonperiod_suspend = false;
+
+    ec_osal_thread_resume(master->nonperiod_thread);
+
+    return 0;
+}
+
+static void ec_master_exit_idle(ec_master_t *master)
+{
+    master->nonperiod_suspend = false;
+    ec_osal_thread_suspend(master->nonperiod_thread);
+}
+
 static void ec_master_nonperiod_thread(void *argument)
 {
     ec_master_t *master = (ec_master_t *)argument;
@@ -394,6 +410,10 @@ static void ec_master_nonperiod_thread(void *argument)
         flags = ec_osal_enter_critical_section();
         ec_master_send(master);
         ec_osal_leave_critical_section(flags);
+
+        if (master->nonperiod_suspend) {
+            ec_master_exit_idle(master);
+        }
     }
 }
 
@@ -405,20 +425,6 @@ static void ec_master_scan_thread(void *argument)
         ec_slaves_scanning(master);
         ec_osal_msleep(CONFIG_EC_SCAN_INTERVAL_MS);
     }
-}
-
-static int ec_master_enter_idle(ec_master_t *master)
-{
-    master->phase = EC_IDLE;
-
-    ec_osal_thread_resume(master->nonperiod_thread);
-
-    return 0;
-}
-
-static void ec_master_exit_idle(ec_master_t *master)
-{
-    ec_osal_thread_suspend(master->nonperiod_thread);
 }
 
 int ec_master_init(ec_master_t *master, uint8_t master_index)
@@ -500,7 +506,7 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
     }
 
     while (!master->scan_done) {
-        ec_osal_msleep(1);
+        ec_osal_msleep(10);
     }
 
     ec_osal_mutex_take(master->scan_lock);
@@ -509,8 +515,14 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
     master->expected_working_counter = 0;
     master->actual_pdo_size = 0;
     master->phase = EC_OPERATION;
+    master->nonperiod_suspend = true;
     master->interval = 0;
     master->systime_diff_enable = false;
+
+    // wait for non-periodic thread to suspend
+    while (!master->nonperiod_suspend) {
+        ec_osal_msleep(10);
+    }
 
     for (uint32_t slave_idx = 0; slave_idx < master->slave_count; slave_idx++) {
         slave = &master->slaves[slave_idx];
@@ -603,8 +615,6 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
 
         ec_dlist_add_tail(&master->pdo_datagram_queue, &pdo_datagram->queue);
     }
-
-    ec_master_exit_idle(master);
 
     ec_htimer_start(period_us, ec_master_period_process, master);
 

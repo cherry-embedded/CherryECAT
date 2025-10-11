@@ -121,6 +121,7 @@ typedef struct ec_master {
     ec_osal_thread_t nonperiod_thread;
     ec_osal_sem_t nonperiod_sem;
     struct ec_osal_timer *linkdetect_timer;
+    bool nonperiod_suspend;
 
     uint8_t pdo_buffer[CONFIG_EC_MAX_NETDEVS][CONFIG_EC_MAX_PDO_BUFSIZE];
     uint32_t actual_pdo_size;
