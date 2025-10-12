@@ -520,7 +520,7 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
     master->systime_diff_enable = false;
 
     // wait for non-periodic thread to suspend
-    while (!master->nonperiod_suspend) {
+    while (master->nonperiod_suspend) {
         ec_osal_msleep(10);
     }
 

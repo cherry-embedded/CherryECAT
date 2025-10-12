@@ -14,7 +14,7 @@
 
 /** Maximum count to wait for clock discipline.
  */
-#define EC_DC_SYNC_WATI_COUNT (15000)
+#define EC_DC_SYNC_WAIT_COUNT (15000)
 
 /** Time offset (in ns), that is added to cyclic start time.
  */
@@ -728,7 +728,7 @@ static int ec_slave_config(ec_slave_t *slave)
         uint32_t time_diff = EC_READ_U32(datagram->data) & 0x7fffffff;
         if (time_diff > EC_DC_MAX_SYNC_DIFF_NS) {
             start_time++;
-            if (start_time > EC_DC_SYNC_WATI_COUNT) {
+            if (start_time > EC_DC_SYNC_WAIT_COUNT) {
                 EC_SLAVE_LOG_ERR("Slave %u DC time diff sync failed\n",
                                  slave->index);
                 return -EC_ERR_TIMEOUT;
@@ -1071,7 +1071,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 goto mutex_unlock;
             }
 
-            // Clear recevice time for dc measure delays
+            // Clear receive time for dc measure delays
             ec_datagram_bwr(datagram, ESCREG_OF(ESCREG->RCV_TIME[0]), 4);
             ec_datagram_zero(datagram);
             datagram->netdev_idx = netdev_idx;

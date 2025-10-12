@@ -144,7 +144,6 @@ static const char *ec_slave_state_string(uint8_t state)
     }
 }
 
-// 添加端口类型字符串转换函数
 static const char *ec_port_desc_string(uint8_t desc)
 {
     switch (desc) {
