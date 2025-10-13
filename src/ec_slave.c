@@ -969,6 +969,8 @@ void ec_slaves_scanning(ec_master_t *master)
             EC_LOG_INFO("Detect link down on %s\n",
                         master->netdev[netdev_idx]->name);
 
+            ec_master_stop(master);
+
             ec_osal_mutex_take(master->scan_lock);
             ec_master_clear_slaves(master);
 
@@ -1016,6 +1018,8 @@ void ec_slaves_scanning(ec_master_t *master)
         uint32_t count = 0, slave_index, autoinc_address;
 
         rescan_required = 0;
+
+        ec_master_stop(master);
 
         ec_osal_mutex_take(master->scan_lock);
 
