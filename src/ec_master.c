@@ -541,10 +541,19 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
 
             slave->sm_info[sm_idx].pdo_assign.count = slave->config->sync[i].n_pdos;
 
+            EC_ASSERT_MSG(slave->sm_info[sm_idx].pdo_assign.count <= CONFIG_EC_PER_SM_MAX_PDOS,
+                          "Slave %u: Too many PDOs %u for SM %u\n",
+                          slave_idx, slave->sm_info[sm_idx].pdo_assign.count, sm_idx);
+
             for (uint32_t j = 0; j < slave->config->sync[i].n_pdos; j++) {
                 slave->sm_info[sm_idx].pdo_assign.entry[j] = slave->config->sync[i].pdos[j].index;
 
                 slave->sm_info[sm_idx].pdo_mapping[j].count = slave->config->sync[i].pdos[j].n_entries;
+
+                EC_ASSERT_MSG(slave->sm_info[sm_idx].pdo_mapping[j].count <= CONFIG_EC_PER_PDO_MAX_PDO_ENTRIES,
+                              "Slave %u: Too many entries %u for PDO 0x%04X\n",
+                              slave_idx, slave->sm_info[sm_idx].pdo_mapping[j].count,
+                              slave->config->sync[i].pdos[j].index);
 
                 for (uint32_t k = 0; k < slave->config->sync[i].pdos[j].n_entries; k++) {
                     uint32_t entry = (slave->config->sync[i].pdos[j].entries[k].index << 16) |
