@@ -15,7 +15,7 @@ uint8_t *ec_mailbox_fill_send(ec_master_t *master,
 {
     ec_slave_t *slave;
 
-    EC_ASSERT_MSG(slave_index >= master->slave_count, "Invalid slave index");
+    EC_ASSERT_MSG(slave_index < master->slave_count, "Invalid slave index");
 
     slave = &master->slaves[slave_index];
 

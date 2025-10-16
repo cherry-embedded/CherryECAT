@@ -1,1 +1,1 @@
-Refer to https://github.com/sakumisu/sdk-bsp-rzn2l-etherkit/tree/master/projects/etherkit_ethercat_cherryecat
+Refer to https://github.com/RT-Thread-Studio/sdk-bsp-rzn2l-etherkit/tree/master/projects/etherkit_ethercat_cherryecat
