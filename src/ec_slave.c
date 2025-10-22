@@ -436,14 +436,15 @@ static int ec_slave_config_dc_systime_and_delay(ec_slave_t *slave)
         }
         system_time = EC_READ_U64(datagram->data);
         old_system_time_offset = EC_READ_U64(datagram->data + 16);
-        time_diff = ec_timestamp_get_time_ns() - system_time;
 
         if (slave->base_dc_range == EC_DC_32) {
-            system_time = (uint32_t)system_time + datagram->jiffies_sent * 1000;
+            system_time = (uint32_t)system_time + (jiffies - datagram->jiffies_sent) * 1000;
             old_system_time_offset = (uint32_t)old_system_time_offset;
         } else {
-            system_time = system_time + datagram->jiffies_sent * 1000;
+            system_time = system_time + (jiffies - datagram->jiffies_sent) * 1000;
         }
+
+        time_diff = ec_timestamp_get_time_ns() - system_time;
 
         if (time_diff > 1000000) { // 1ms
             new_system_time_offset = time_diff + old_system_time_offset;
