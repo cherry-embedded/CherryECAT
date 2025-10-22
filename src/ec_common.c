@@ -370,11 +370,32 @@ const ec_code_msg_t foe_errcode_messages[] = {
 
 };
 
-const char *foe_errorcode_string(uint16_t errorcode)
+const char *ec_foe_errorcode_string(uint16_t errorcode)
 {
     for (uint32_t i = 0; foe_errcode_messages[i].code != 0xffffffff; i++) {
         if (foe_errcode_messages[i].code == errorcode) {
             return foe_errcode_messages[i].message;
+        }
+    }
+    return "Unknown errorcode";
+}
+
+const ec_code_msg_t eoe_errcode_messages[] = {
+    { EC_EOE_RESULT_NOERROR, "No Error" },
+    { EC_EOE_RESULT_UNSPECIFIED_ERROR, "Unspecified error" },
+    { EC_EOE_RESULT_UNSUPPORTED_TYPE, "Unsupported type" },
+    { EC_EOE_RESULT_NO_IP_SUPPORT, "No IP support" },
+    { EC_EOE_RESULT_NO_DHCP_SUPPORT, "No DHCP support" },
+    { EC_EOE_RESULT_NO_MACFILTERMASK_SUPPORT, "No MAC filter/mask support" },
+
+    { 0xffffffff }
+};
+
+const char *ec_eoe_errorcode_string(uint16_t errorcode)
+{
+    for (uint32_t i = 0; eoe_errcode_messages[i].code != 0xffffffff; i++) {
+        if (eoe_errcode_messages[i].code == errorcode) {
+            return eoe_errcode_messages[i].message;
         }
     }
     return "Unknown errorcode";

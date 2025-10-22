@@ -272,6 +272,11 @@ typedef struct ec_alstatus {
 #define EC_SII_SM_PROCESS_DATA_OUTPUT 0x0003
 #define EC_SII_SM_PROCESS_DATA_INPUT  0x0004
 
+#define EC_SM_INDEX_MBX_WRITE           0x0000
+#define EC_SM_INDEX_MBX_READ            0x0001
+#define EC_SM_INDEX_PROCESS_DATA_OUTPUT 0x0002
+#define EC_SM_INDEX_PROCESS_DATA_INPUT  0x0003
+
 typedef struct __PACKED ec_sii_base {
     uint16_t pdi_control;
     uint16_t pdi_config;
@@ -417,10 +422,15 @@ enum {
     EC_MBOX_TYPE_VOE = 0x0f,
 };
 
-#define EC_SM_INDEX_MBX_WRITE           0x0000
-#define EC_SM_INDEX_MBX_READ            0x0001
-#define EC_SM_INDEX_PROCESS_DATA_OUTPUT 0x0002
-#define EC_SM_INDEX_PROCESS_DATA_INPUT  0x0003
+#define EC_MBXERR_SYNTAX              0x01 /**< \brief Mailbox error "syntax"*/
+#define EC_MBXERR_UNSUPPORTEDPROTOCOL 0x02 /**< \brief Mailbox error "unsupported protocol"*/
+#define EC_MBXERR_INVALIDCHANNEL      0x03 /**< \brief Mailbox error "invalid channel"*/
+#define EC_MBXERR_SERVICENOTSUPPORTED 0x04 /**< \brief Mailbox error "service not supported"*/
+#define EC_MBXERR_INVALIDHEADER       0x05 /**< \brief Mailbox error "invalid header"*/
+#define EC_MBXERR_SIZETOOSHORT        0x06 /**< \brief Mailbox error "Size too short"*/
+#define EC_MBXERR_NOMOREMEMORY        0x07 /**< \brief Mailbox error "No memory"*/
+#define EC_MBXERR_INVALIDSIZE         0x08 /**< \brief Mailbox error "Invalid size"*/
+#define EC_MBXERR_SERVICEINWORK       0x09 /**< \brief Mailbox error "Service in work"*/
 
 typedef struct __PACKED ec_coe_header {
     uint16_t number   : 9;
@@ -506,6 +516,24 @@ typedef struct __PACKED {
 #define EC_FOE_ERRCODE_NO_FILE          0x800F /**< \brief Do not use (identical with 0x8001)*/
 #define EC_FOE_ERRCODE_NO_FILE_HEADER   0x8010 /**< \brief Missing file header of error in file header*/
 #define EC_FOE_ERRCODE_FLASH_ERROR      0x8011 /**< \brief Flash cannot be accessed*/
+
+#define EC_EOE_TYPE_FRAGMENT                0x00
+#define EC_EOE_TYPE_TIMESTAMP               0x01
+#define EC_EOE_TYPE_SET_IP_REQUEST          0x02
+#define EC_EOE_TYPE_SET_IP_RESPONSE         0x03
+#define EC_EOE_TYPE_MACFILTER_REQUEST       0x04
+#define EC_EOE_TYPE_MACFILTER_RESPONSE      0x05
+#define EC_EOE_TYPE_GET_IP_REQUEST          0x06
+#define EC_EOE_TYPE_GET_IP_RESPONSE         0x07
+#define EC_EOE_TYPE_GET_MAC_FILTER_REQUEST  0x08
+#define EC_EOE_TYPE_GET_MAC_FILTER_RESPONSE 0x09
+
+#define EC_EOE_RESULT_NOERROR                  0x0000 /**< \brief No Error*/
+#define EC_EOE_RESULT_UNSPECIFIED_ERROR        0x0001 /**< \brief Unspecified error*/
+#define EC_EOE_RESULT_UNSUPPORTED_TYPE         0x0002 /**< \brief unsupported type*/
+#define EC_EOE_RESULT_NO_IP_SUPPORT            0x0201 /**< \brief No IP supported*/
+#define EC_EOE_RESULT_NO_DHCP_SUPPORT          0x0202 /**< \brief No DHCP supported*/
+#define EC_EOE_RESULT_NO_MACFILTERMASK_SUPPORT 0x0401 /**< \brief No mac filter supported*/
 
 typedef enum {
     EC_DIR_OUTPUT, /**< Values written by the master. */

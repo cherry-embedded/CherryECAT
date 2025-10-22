@@ -20,17 +20,18 @@
 #include "ec_def.h"
 #include "ec_osal.h"
 #include "ec_port.h"
+#include "ec_perf.h"
+#include "ec_timestamp.h"
+#include "ec_version.h"
 #include "ec_datagram.h"
 #include "ec_common.h"
 #include "ec_sii.h"
 #include "ec_slave.h"
 #include "ec_mailbox.h"
 #include "ec_coe.h"
-#include "ec_cmd.h"
-#include "ec_perf.h"
-#include "ec_timestamp.h"
-#include "ec_version.h"
 #include "ec_foe.h"
+#include "ec_eoe.h"
+#include "ec_cmd.h"
 
 /** Netdev statistics.
  */

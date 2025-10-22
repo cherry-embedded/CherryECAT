@@ -13,6 +13,7 @@ const char *ec_mbox_protocol_string(uint8_t prot);
 const char *ec_alstatus_string(uint16_t errorcode);
 const char *ec_mbox_error_string(uint16_t errorcode);
 const char *ec_sdo_abort_string(uint32_t errorcode);
-const char *foe_errorcode_string(uint16_t errorcode);
+const char *ec_foe_errorcode_string(uint16_t errorcode);
+const char *ec_eoe_errorcode_string(uint16_t errorcode);
 
 #endif

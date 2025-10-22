@@ -18,18 +18,25 @@
 #include "hpm_gptmr_drv.h"
 #include "cia402_def.h"
 #include "ec_master.h"
+#ifdef CONFIG_EC_EOE
+#include "lwip/tcpip.h"
+#endif
 
 SDK_DECLARE_EXT_ISR_M(BOARD_CONSOLE_UART_IRQ, shell_uart_isr)
 
 #define task_start_PRIORITY (configMAX_PRIORITIES - 2U)
 
-#define MOTOR_MODE_CSV_CSP  0
-#define MOTOR_MODE_CSP      1
-#define MOTOR_MODE_CSV      2
+#define MOTOR_MODE_CSV_CSP 0
+#define MOTOR_MODE_CSP     1
+#define MOTOR_MODE_CSV     2
 
 volatile uint8_t motor_mode = MOTOR_MODE_CSV;
 
 ec_master_t g_ec_master;
+
+#ifdef CONFIG_EC_EOE
+ec_eoe_t g_ec_eoe;
+#endif
 
 static void task_start(void *param);
 
@@ -43,6 +50,10 @@ int main(void)
         };
     }
 
+#ifdef CONFIG_EC_EOE
+    /* Initialize the LwIP stack */
+    tcpip_init(NULL, NULL);
+#endif
     vTaskStartScheduler();
     printf("Unexpected scheduler exit!\r\n");
     while (1) {
@@ -91,6 +102,9 @@ static void task_start(void *param)
     printf("Enable shell uart interrupt\r\n");
 
     ec_master_cmd_init(&g_ec_master);
+#ifdef CONFIG_EC_EOE
+    ec_master_cmd_eoe_init(&g_ec_eoe);
+#endif
     ec_master_init(&g_ec_master, 0);
 
     printf("Exit start task\r\n");
@@ -192,13 +206,12 @@ int ec_start(int argc, const char **argv)
             case 0x00000001: // DIO
                 g_ec_master.slaves[i].config = &slave_dio_config;
                 break;
-            case 0x00000002: // FOE
-                break;
             case 0x00000003: // CIA402
                 g_ec_master.slaves[i].config = &slave_cia402_config;
                 break;
 
             default:
+                g_ec_master.slaves[i].config = &slave_dio_config;
                 break;
         }
     }
@@ -214,3 +227,13 @@ int ec_stop(int argc, const char **argv)
     return 0;
 }
 CSH_CMD_EXPORT(ec_stop, );
+
+#ifdef CONFIG_EC_EOE
+#include "tcp_client.h"
+int tcp_client(int argc, const char **argv)
+{
+    tcp_client_init(&g_ec_eoe.netif);
+    return 0;
+}
+CSH_CMD_EXPORT(tcp_client, );
+#endif

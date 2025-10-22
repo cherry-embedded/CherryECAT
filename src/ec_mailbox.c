@@ -15,10 +15,11 @@ uint8_t *ec_mailbox_fill_send(ec_master_t *master,
 {
     ec_slave_t *slave;
 
-    EC_ASSERT_MSG(slave_index >= master->slave_count, "Invalid slave index");
+    EC_ASSERT_MSG(slave_index < master->slave_count, "Invalid slave index");
 
     slave = &master->slaves[slave_index];
 
+    EC_ASSERT_MSG(datagram->mem_size >= slave->configured_rx_mailbox_size, "Datagram size too small for RX mailbox");
     EC_ASSERT_MSG((EC_MBOX_HEADER_SIZE + size) <= slave->configured_rx_mailbox_size, "RX Mailbox size overflow");
 
     EC_WRITE_U16(datagram->data, size);                       // mailbox service data length
@@ -74,7 +75,7 @@ check_again:
 
     if (!(EC_READ_U8(datagram->data + 5) & ESC_SYNCM_STATUS_MBX_MODE_MASK)) {
         if ((jiffies - start_time) > timeout_us) {
-            return -EC_ERR_TIMEOUT;
+            return -EC_ERR_MBOX_EMPTY;
         }
         goto check_again;
     }
@@ -105,6 +106,8 @@ int ec_mailbox_receive(ec_master_t *master,
     if (ret < 0) {
         return ret;
     }
+
+    EC_ASSERT_MSG(datagram->mem_size >= slave->configured_tx_mailbox_size, "Datagram size too small for TX mailbox");
 
     ec_datagram_fprd(datagram, slave->station_address, slave->configured_tx_mailbox_offset, slave->configured_tx_mailbox_size);
     ec_datagram_zero(datagram);

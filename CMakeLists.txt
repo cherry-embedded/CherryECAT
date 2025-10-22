@@ -9,6 +9,7 @@ if(CONFIG_CHERRYECAT)
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_coe.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_common.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_datagram.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/ec_eoe.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_foe.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_mailbox.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_master.c

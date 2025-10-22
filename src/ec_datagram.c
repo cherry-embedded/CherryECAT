@@ -99,7 +99,7 @@ void ec_datagram_unqueue(ec_datagram_t *datagram)
 
 EC_FAST_CODE_SECTION void ec_datagram_zero(ec_datagram_t *datagram)
 {
-    memset(datagram->data, 0x00, datagram->data_size);
+    ec_memset(datagram->data, 0x00, datagram->data_size);
 }
 
 void ec_datagram_fill(ec_datagram_t *datagram,

@@ -42,6 +42,7 @@
 #define configGENERATE_RUN_TIME_STATS           0
 
 #define configUSE_COUNTING_SEMAPHORES           1
+#define configUSE_RECURSIVE_MUTEXES             1
 #define configUSE_MUTEXES                       1
 
 /* Memory allocation definitions. */
