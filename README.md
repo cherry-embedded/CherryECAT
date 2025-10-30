@@ -37,7 +37,7 @@ The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
 ## Hardware limitations
 
 - **Master**
-	- CPU (cache > 16K, **memcpy speed > 100MB/s**)
+	- CPU (**Coremark/Mhz > 5.0**, cache > 16K, **memcpy speed > 100MB/s**)
 	- ENET must support descriptor dma and iperf with lwip > 90 Mbps
 	- Must support High-Precision Timer (jitter < 1us)
 	- Must support High-Precision timestamp (ARM DWT/RISC-V MCYCLE)
@@ -112,4 +112,4 @@ QQ group: 563650597
 
 ## License
 
-FOE, EOE and backup redundancy features are available for commercial charge; other are free to use
+FOE, EOE and backup redundancy features are available in **Royalty-Free**; other are free to use
