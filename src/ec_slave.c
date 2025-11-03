@@ -942,7 +942,7 @@ static void ec_master_scan_slaves_state(ec_master_t *master)
         if (((slave->requested_state != slave->current_state) && (slave->alstatus_code == 0)) || slave->force_update) {
             ret = ec_slave_config(slave);
             if (ret < 0) {
-                EC_SLAVE_LOG_ERR("Failed to configure slave %u\n", slave->index);
+                EC_SLAVE_LOG_ERR("Failed to configure slave %u, errorcode: %d\n", slave->index, ret);
             }
             slave->force_update = false;
         }
@@ -1215,7 +1215,7 @@ void ec_slaves_scanning(ec_master_t *master)
             do {
                 ret = ec_sii_read(master, slave_index, datagram, sii_offset, &sii_data, 4);
                 if (ret < 0) {
-                    EC_SLAVE_LOG_ERR("Failed to read SII category header on slave %u\n", slave->index);
+                    EC_SLAVE_LOG_ERR("Failed to read SII category header on slave %u, errorcode: %d\n", slave->index, ret);
                     goto mutex_unlock;
                 }
 
@@ -1239,7 +1239,7 @@ void ec_slaves_scanning(ec_master_t *master)
             // Read full SII and parse it
             ret = ec_sii_read(master, slave_index, datagram, 0x0000, (uint32_t *)slave->sii_image, slave->sii_nwords * 2);
             if (ret < 0) {
-                EC_SLAVE_LOG_ERR("Failed to read SII category header on slave %u\n", slave->index);
+                EC_SLAVE_LOG_ERR("Failed to read full SII on slave %u, errorcode: %d\n", slave->index, ret);
                 goto mutex_unlock;
             }
 
@@ -1332,7 +1332,7 @@ void ec_slaves_scanning(ec_master_t *master)
 
             ret = ec_slave_config(slave);
             if (ret < 0) {
-                EC_SLAVE_LOG_ERR("Failed to configure slave %u\n", slave->index);
+                EC_SLAVE_LOG_ERR("Failed to configure slave %u, errorcode: %d\n", slave->index, ret);
                 goto mutex_unlock;
             }
         }
