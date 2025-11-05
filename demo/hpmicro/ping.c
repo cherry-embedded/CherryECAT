@@ -3,6 +3,7 @@
  */
 
 #include <FreeRTOS.h>
+#include "task.h"
 
 #include <lwip/opt.h>
 #include <lwip/init.h>

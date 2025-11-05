@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  build:
+  build_hpmicro:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -33,4 +33,4 @@ jobs:
           export HPM_SDK_BASE=~/hpm_sdk
           export GNURISCV_TOOLCHAIN_PATH=~/rv32imac_zicsr_zifencei_multilib_b_ext-linux
           export HPM_SDK_TOOLCHAIN_VARIANT=
-          cmake -S . -B build -GNinja -DBOARD=hpm6800evk -DHPM_BUILD_TYPE=ram -DCMAKE_BUILD_TYPE=debug;cmake --build build
+          cmake -S . -B build -GNinja -DBOARD=hpm6800evk -DCMAKE_BUILD_TYPE=flash_xip -DEXTRA_C_FLAGS="-Werror";cmake --build build
