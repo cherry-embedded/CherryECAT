@@ -91,6 +91,8 @@ ec_netdev_t *ec_netdev_init(uint8_t netdev_index)
         netdev->phydev.mdio_write = ec_mdio_low_level_write;
         netdev->phydev.user_data = netdev;
 
+        // Delay to ensure PHY power up and access to mac
+        ec_osal_msleep(200);
         EC_ASSERT_MSG(chry_phy_init(&netdev->phydev, &config) == 0, "PHY init failed for netdev %d\n", netdev_index);
 
         EC_LOG_INFO("PHY info: \n");
