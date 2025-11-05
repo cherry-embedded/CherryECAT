@@ -52,6 +52,11 @@ static void ec_slave_clear(ec_slave_t *slave)
         ec_osal_free(slave->sii.strings);
         slave->sii.strings = NULL;
     }
+
+    if (slave->sm_info) {
+        ec_osal_free(slave->sm_info);
+        slave->sm_info = NULL;
+    }
 }
 
 static int ec_slave_fetch_sii_strings(ec_slave_t *slave, const uint8_t *data, size_t data_size)
@@ -1060,7 +1065,6 @@ void ec_slaves_scanning(ec_master_t *master)
                 autoinc_address++;
             }
         }
-        ec_osal_mutex_give(master->scan_lock);
 
         for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             if (master->slaves_responding[netdev_idx] == 0) {
@@ -1304,6 +1308,13 @@ void ec_slaves_scanning(ec_master_t *master)
                         slave->sm_count = (cat_size * 2) / sizeof(ec_sii_sm_t);
 
                         EC_ASSERT_MSG(slave->sm_count >= 4, "Slave %u has less than 4 sync managers\n", slave->index);
+
+                        slave->sm_info = ec_osal_malloc(slave->sm_count * sizeof(ec_sm_info_t));
+                        if (!slave->sm_info) {
+                            EC_SLAVE_LOG_ERR("Failed to allocate memory for SM info on slave %u\n", slave->index);
+                            goto mutex_unlock;
+                        }
+                        memset(slave->sm_info, 0, slave->sm_count * sizeof(ec_sm_info_t));
 
                         for (uint8_t i = 0; i < slave->sm_count; i++) {
                             ec_sii_sm_t *sm = (ec_sii_sm_t *)((uint8_t *)cat_data + i * sizeof(ec_sii_sm_t));

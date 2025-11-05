@@ -102,7 +102,7 @@ typedef struct ec_slave {
 
     ec_sii_t sii; /**< Extracted SII data. */
 
-    ec_sm_info_t sm_info[EC_MAX_SYNC_MANAGERS];
+    ec_sm_info_t *sm_info;
     uint8_t sm_count; /**< Number of sync managers. */
 
     ec_slave_config_t *config; /**< Slave custom configuration. */

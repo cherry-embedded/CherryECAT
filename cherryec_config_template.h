@@ -54,7 +54,7 @@
 #endif
 
 #ifndef CONFIG_EC_PER_SM_MAX_PDOS
-#define CONFIG_EC_PER_SM_MAX_PDOS 8
+#define CONFIG_EC_PER_SM_MAX_PDOS 3
 #endif
 
 #ifndef CONFIG_EC_PER_PDO_MAX_PDO_ENTRIES
