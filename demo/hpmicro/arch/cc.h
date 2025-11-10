@@ -96,8 +96,4 @@ typedef unsigned long clockid_t;
 
 #define LWIP_PLATFORM_ASSERT(x) printf(x)
 
-#ifndef LWIP_MEM_SECTION
-#define LWIP_MEM_SECTION ".fast_ram.non_init"
-#endif
-
 #endif /* __CC_H__ */
