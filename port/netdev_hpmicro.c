@@ -300,7 +300,13 @@ void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
 
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 {
-    return (uint8_t *)tx_buff[netdev->tx_frame_index];
+    __IO enet_tx_desc_t *dma_tx_desc;
+
+    dma_tx_desc = desc.tx_desc_list_cur;
+
+    EC_ASSERT_MSG(dma_tx_desc->tdes0_bm.own == 0, "No free tx buffer available\n");
+
+    return (uint8_t *)dma_tx_desc->tdes2_bm.buffer1;
 }
 
 EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_t size)
@@ -311,9 +317,6 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_
     if (dma_tx_desc->tdes0_bm.own != 0) {
         return -1;
     }
-
-    netdev->tx_frame_index++;
-    netdev->tx_frame_index %= ENET_TX_BUFF_COUNT;
 
     /* Prepare transmit descriptors to give to DMA*/
     enet_prepare_transmission_descriptors(ENET, &desc.tx_desc_list_cur, size + 4, desc.tx_buff_cfg.size);
@@ -448,6 +451,7 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
     gptmr_channel_config(EC_HTIMER, EC_HTIMER_CH, &config, false);
     gptmr_enable_irq(EC_HTIMER, GPTMR_CH_RLD_IRQ_MASK(EC_HTIMER_CH));
     intc_m_enable_irq_with_priority(EC_HTIMER_IRQ, 10);
+    gptmr_channel_reset_count(EC_HTIMER, EC_HTIMER_CH);
     gptmr_start_counter(EC_HTIMER, EC_HTIMER_CH);
 }
 
