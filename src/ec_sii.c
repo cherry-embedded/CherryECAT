@@ -27,7 +27,7 @@ static int esc_sii_assign_pdi(ec_slave_t *slave, ec_datagram_t *datagram)
 
 static int ec_sii_read_dword(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, uint32_t *value)
 {
-    uint32_t start_time;
+    uint64_t start_time;
     int ret;
 
     ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->EEPROM_CTRL_STAT), 4);
@@ -70,7 +70,7 @@ sii_check:
 
 static int ec_sii_write_word(ec_slave_t *slave, ec_datagram_t *datagram, uint16_t woffset, uint16_t value)
 {
-    uint32_t start_time;
+    uint64_t start_time;
     int ret;
 
     // write with 2 bytes

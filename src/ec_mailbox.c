@@ -53,7 +53,7 @@ int ec_mailbox_read_status(ec_master_t *master,
                            uint32_t timeout_us)
 {
     ec_slave_t *slave;
-    uint32_t start_time;
+    uint64_t start_time;
     int ret;
 
     if (slave_index >= master->slave_count) {
