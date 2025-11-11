@@ -986,7 +986,7 @@ void ec_slaves_scanning(ec_master_t *master)
 {
     ec_datagram_t *datagram;
     ec_slave_t *slave;
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
     bool rescan_required = false;
     unsigned int scan_jiffies;
     int ret;

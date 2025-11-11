@@ -377,7 +377,7 @@ EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
 static void ec_netdev_linkpoll_timer(void *argument)
 {
     ec_master_t *master = (ec_master_t *)argument;
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
         ec_netdev_poll_link_state(master->netdev[netdev_idx]);
@@ -429,7 +429,7 @@ static void ec_master_scan_thread(void *argument)
 
 int ec_master_init(ec_master_t *master, uint8_t master_index)
 {
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
 
     memset(master, 0, sizeof(ec_master_t));
     master->index = master_index;
@@ -498,7 +498,7 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
     ec_slave_t *slave;
     uint32_t bitlen;
     bool used[2] = { false, false };
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
     uint8_t sm_idx;
 
     if (master->active) {
@@ -641,7 +641,7 @@ int ec_master_start(ec_master_t *master, uint32_t period_us)
 int ec_master_stop(ec_master_t *master)
 {
     ec_pdo_datagram_t *pdo_datagram, *n;
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
 
     if (!master->active) {
         return 0;
@@ -816,7 +816,7 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
     ec_pdo_datagram_t *pdo_datagram, *n;
-    unsigned int netdev_idx;
+    ec_netdev_index_t netdev_idx;
 
     if (master->phase != EC_OPERATION) {
         return;
