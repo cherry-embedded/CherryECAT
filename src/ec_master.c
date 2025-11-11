@@ -648,13 +648,29 @@ int ec_master_stop(ec_master_t *master)
     }
 
     ec_osal_mutex_take(master->scan_lock);
-    ec_htimer_stop();
+    master->active = false;
 
     for (uint32_t i = 0; i < master->slave_count; i++) {
         master->slaves[i].requested_state = EC_SLAVE_STATE_PREOP;
         master->slaves[i].alstatus_code = 0;
         master->slaves[i].force_update = true;
     }
+
+    while (1) {
+        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+            if (master->netdev[netdev_idx]->link_state == 0) {
+                goto out;
+            }
+
+            if ((master->slaves_state[netdev_idx] & EC_SLAVE_STATE_MASK) == EC_SLAVE_STATE_PREOP) {
+                goto out;
+            }
+        }
+        ec_osal_msleep(10);
+    }
+
+out:
+    ec_htimer_stop();
 
     ec_dlist_for_each_entry_safe(pdo_datagram, n, &master->pdo_datagram_queue, queue)
     {
@@ -664,8 +680,6 @@ int ec_master_stop(ec_master_t *master)
         ec_dlist_del_init(&pdo_datagram->queue);
         ec_osal_free(pdo_datagram);
     }
-
-    master->active = false;
 
     ec_master_enter_idle(master);
 
