@@ -798,7 +798,7 @@ int ethercat(int argc, const char **argv)
                             &actual_size,
                             argc >= 6 ? false : true);
         if (ret < 0) {
-            EC_SLAVE_LOG_ERR("Slave %u coe_read failed: %d\n", slave_idx, ret);
+            EC_LOG_RAW("Slave %u coe_read failed: %d\n", slave_idx, ret);
         } else {
             ec_hexdump(output_buffer, actual_size);
         }
@@ -831,7 +831,7 @@ int ethercat(int argc, const char **argv)
                               size,
                               false);
         if (ret < 0) {
-            EC_SLAVE_LOG_ERR("Slave %u coe_write failed: %d\n", slave_idx, ret);
+            EC_LOG_RAW("Slave %u coe_write failed: %d\n", slave_idx, ret);
         } else {
             EC_LOG_RAW("Slave %u coe write success\n", slave_idx);
         }
@@ -863,7 +863,7 @@ int ethercat(int argc, const char **argv)
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
-            EC_SLAVE_LOG_ERR("Slave %u sii_write failed: %d\n", slave_idx, ret);
+            EC_LOG_RAW("Slave %u sii_write failed: %d\n", slave_idx, ret);
         } else {
             EC_LOG_RAW("Slave %u sii write success\n", slave_idx);
         }
@@ -971,14 +971,14 @@ int ethercat(int argc, const char **argv)
 
         ec_datagram_init(&datagram, 1024);
 
-        EC_SLAVE_LOG_INFO("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
+        EC_LOG_RAW("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
         ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size);
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
-            EC_SLAVE_LOG_ERR("Slave %u foe_write failed: %d\n", slave_idx, ret);
+            EC_LOG_RAW("Slave %u foe_write failed: %d\n", slave_idx, ret);
         } else {
             EC_LOG_RAW("Slave %u foe write success\n", slave_idx);
         }
@@ -993,7 +993,7 @@ int ethercat(int argc, const char **argv)
         const char *filename = argv[4];
         uint32_t password = strtoul(argv[5], NULL, 16);
 
-        EC_SLAVE_LOG_INFO("Slave %u foe read file %s, password: 0x%08x\n", slave_idx, filename, password);
+        EC_LOG_RAW("Slave %u foe read file %s, password: 0x%08x\n", slave_idx, filename, password);
 
         static ec_datagram_t datagram;
 
@@ -1004,7 +1004,7 @@ int ethercat(int argc, const char **argv)
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
-            EC_SLAVE_LOG_ERR("Slave %u foe_read failed: %d\n", slave_idx, ret);
+            EC_LOG_RAW("Slave %u foe_read failed: %d\n", slave_idx, ret);
         } else {
             ec_hexdump(hexdata, size);
         }
