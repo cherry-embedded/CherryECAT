@@ -19,6 +19,7 @@ struct chry_phy_config {
     bool auto_negotiation;
     bool duplex;
     uint16_t speed;
+    uint16_t phy_port;
 };
 
 struct chry_phy_status {
@@ -53,6 +54,7 @@ struct chry_phy_support {
 };
 
 struct chry_phy_device {
+    uint16_t phy_port;
     uint16_t phy_addr;
     uint32_t phy_id;
     struct chry_phy_support support;

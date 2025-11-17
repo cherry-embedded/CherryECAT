@@ -63,6 +63,7 @@ int chry_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config
     }
 
 phydrv_found:
+    phydev->phy_port = config->phy_port;
     phydev->phy_id = phy_id;
     phydev->phy_addr = phy_addr;
     phydev->driver = phydrv;
