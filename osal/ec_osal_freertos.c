@@ -109,6 +109,53 @@ int ec_osal_mutex_give(ec_osal_mutex_t mutex)
     return (xSemaphoreGive((SemaphoreHandle_t)mutex) == pdPASS) ? 0 : -EC_ERR_TIMEOUT;
 }
 
+ec_osal_mq_t ec_osal_mq_create(uint32_t max_msgs)
+{
+    return (ec_osal_mq_t)xQueueCreate(max_msgs, sizeof(uintptr_t));
+}
+
+void ec_osal_mq_delete(ec_osal_mq_t mq)
+{
+    vQueueDelete((QueueHandle_t)mq);
+}
+
+int ec_osal_mq_send(ec_osal_mq_t mq, uintptr_t addr)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    int ret;
+
+    if (xPortIsInsideInterrupt()) {
+        ret = xQueueSendFromISR((ec_osal_mq_t)mq, &addr, &xHigherPriorityTaskWoken);
+        if (ret == pdPASS) {
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        }
+    } else {
+        ret = xQueueSend((ec_osal_mq_t)mq, &addr, 0);
+    }
+
+    return (ret == pdPASS) ? 0 : -EC_ERR_TIMEOUT;
+}
+
+int ec_osal_mq_recv(ec_osal_mq_t mq, uintptr_t *addr, uint32_t timeout)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    int ret;
+
+    if (xPortIsInsideInterrupt()) {
+        ret = xQueueReceiveFromISR((ec_osal_mq_t)mq, addr, &xHigherPriorityTaskWoken);
+        if (ret == pdPASS) {
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+        }
+        return (ret == pdPASS) ? 0 : -EC_ERR_TIMEOUT;
+    } else {
+        if (timeout == EC_OSAL_WAITING_FOREVER) {
+            return (xQueueReceive((ec_osal_mq_t)mq, addr, portMAX_DELAY) == pdPASS) ? 0 : -EC_ERR_TIMEOUT;
+        } else {
+            return (xQueueReceive((ec_osal_mq_t)mq, addr, pdMS_TO_TICKS(timeout)) == pdPASS) ? 0 : -EC_ERR_TIMEOUT;
+        }
+    }
+}
+
 static void __ec_timeout(TimerHandle_t *handle)
 {
     struct ec_osal_timer *timer = (struct ec_osal_timer *)pvTimerGetTimerID((TimerHandle_t)handle);

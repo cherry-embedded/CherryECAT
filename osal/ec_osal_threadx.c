@@ -144,6 +144,48 @@ int ec_osal_mutex_give(ec_osal_mutex_t mutex)
     return (tx_mutex_put((TX_MUTEX *)mutex) == TX_SUCCESS) ? 0 : -EC_ERR_INVAL;
 }
 
+ec_osal_mq_t ec_osal_mq_create(uint32_t max_msgs)
+{
+    TX_QUEUE *queue_ptr = TX_NULL;
+
+    tx_byte_allocate(&ec_byte_pool, (VOID **)&queue_ptr, EC_ALIGN_UP(sizeof(TX_QUEUE), 4) + sizeof(uintptr_t) * max_msgs, TX_NO_WAIT);
+    if (queue_ptr == TX_NULL) {
+        EC_LOG_ERR("Create TX_QUEUE failed\r\n");
+        while (1) {
+        }
+    }
+
+    tx_queue_create(queue_ptr, "ec_mq", sizeof(uintptr_t) / 4, (CHAR *)queue_ptr + EC_ALIGN_UP(sizeof(TX_QUEUE), 4), sizeof(uintptr_t) * max_msgs);
+    return (ec_osal_mq_t)queue_ptr;
+}
+
+void ec_osal_mq_delete(ec_osal_mq_t mq)
+{
+    tx_queue_delete((TX_QUEUE *)mq);
+    tx_byte_release(mq);
+}
+
+int ec_osal_mq_send(ec_osal_mq_t mq, uintptr_t addr)
+{
+    return (tx_queue_send((TX_QUEUE *)mq, &addr, TX_NO_WAIT) == TX_SUCCESS) ? 0 : -EC_ERR_INVAL;
+}
+
+int ec_osal_mq_recv(ec_osal_mq_t mq, uintptr_t *addr, uint32_t timeout)
+{
+    int ret = 0;
+
+    ret = tx_queue_receive((TX_QUEUE *)mq, addr, timeout);
+    if (ret == TX_SUCCESS) {
+        ret = 0;
+    } else if (ret == TX_QUEUE_EMPTY) {
+        ret = -EC_ERR_TIMEOUT;
+    } else {
+        ret = -EC_ERR_INVAL;
+    }
+
+    return (int)ret;
+}
+
 struct ec_osal_timer *ec_osal_timer_create(const char *name, uint32_t timeout_ms, ec_timer_handler_t handler, void *argument, bool is_period)
 {
     TX_TIMER *timer_ptr = TX_NULL;

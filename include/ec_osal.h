@@ -26,6 +26,7 @@
 typedef void *ec_osal_thread_t;
 typedef void *ec_osal_sem_t;
 typedef void *ec_osal_mutex_t;
+typedef void *ec_osal_mq_t;
 typedef void (*ec_thread_entry_t)(CONFIG_EC_OSAL_THREAD_SET_ARGV);
 typedef void (*ec_timer_handler_t)(void *argument);
 struct ec_osal_timer {
@@ -54,6 +55,11 @@ ec_osal_mutex_t ec_osal_mutex_create(void);
 void ec_osal_mutex_delete(ec_osal_mutex_t mutex);
 int ec_osal_mutex_take(ec_osal_mutex_t mutex);
 int ec_osal_mutex_give(ec_osal_mutex_t mutex);
+
+ec_osal_mq_t ec_osal_mq_create(uint32_t max_msgs);
+void ec_osal_mq_delete(ec_osal_mq_t mq);
+int ec_osal_mq_send(ec_osal_mq_t mq, uintptr_t addr);
+int ec_osal_mq_recv(ec_osal_mq_t mq, uintptr_t *addr, uint32_t timeout);
 
 struct ec_osal_timer *ec_osal_timer_create(const char *name, uint32_t timeout_ms, ec_timer_handler_t handler, void *argument, bool is_period);
 void ec_osal_timer_delete(struct ec_osal_timer *timer);

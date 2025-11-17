@@ -114,6 +114,43 @@ int ec_osal_mutex_give(ec_osal_mutex_t mutex)
     return (int)rt_mutex_release((rt_mutex_t)mutex);
 }
 
+
+ec_osal_mq_t ec_osal_mq_create(uint32_t max_msgs)
+{
+    return (ec_osal_mq_t)rt_mq_create("ec_mq", sizeof(uintptr_t), max_msgs, RT_IPC_FLAG_FIFO);
+}
+
+void ec_osal_mq_delete(ec_osal_mq_t mq)
+{
+    rt_mq_delete((rt_mq_t)mq);
+}
+
+int ec_osal_mq_send(ec_osal_mq_t mq, uintptr_t addr)
+{
+    return rt_mq_send((rt_mq_t)mq, &addr, sizeof(uintptr_t));
+}
+
+int ec_osal_mq_recv(ec_osal_mq_t mq, uintptr_t *addr, uint32_t timeout)
+{
+    int ret = 0;
+    rt_err_t result = RT_EOK;
+
+    if (timeout == EC_OSAL_WAITING_FOREVER) {
+        result = rt_mq_recv((rt_mq_t)mq, addr, sizeof(uintptr_t), RT_WAITING_FOREVER);
+    } else {
+        result = rt_mq_recv((rt_mq_t)mq, addr, sizeof(uintptr_t), rt_tick_from_millisecond(timeout));
+    }
+    if (result == -RT_ETIMEOUT) {
+        ret = -EC_ERR_TIMEOUT;
+    } else if (result == -RT_ERROR) {
+        ret = -EC_ERR_INVAL;
+    } else {
+        ret = 0;
+    }
+
+    return (int)ret;
+}
+
 struct ec_osal_timer *ec_osal_timer_create(const char *name, uint32_t timeout_ms, ec_timer_handler_t handler, void *argument, bool is_period)
 {
     struct ec_osal_timer *timer;
