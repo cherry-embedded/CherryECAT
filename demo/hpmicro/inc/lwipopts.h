@@ -214,7 +214,7 @@ a lot of data that needs to be copied, this should be set high. */
  *   }
  */
 #ifndef LWIP_NETIF_TX_SINGLE_PBUF
-#define LWIP_NETIF_TX_SINGLE_PBUF 0
+#define LWIP_NETIF_TX_SINGLE_PBUF 1
 #endif
 
 /*

@@ -32,10 +32,10 @@ SDK_DECLARE_EXT_ISR_M(BOARD_CONSOLE_UART_IRQ, shell_uart_isr)
 
 volatile uint8_t motor_mode = MOTOR_MODE_CSV;
 
-ec_master_t g_ec_master;
+ATTR_PLACE_AT_FAST_RAM_BSS ec_master_t g_ec_master;
 
 #ifdef CONFIG_EC_EOE
-ec_eoe_t g_ec_eoe;
+ATTR_PLACE_AT_FAST_RAM_BSS ec_eoe_t g_ec_eoe;
 #endif
 
 static void task_start(void *param);

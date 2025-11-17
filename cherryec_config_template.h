@@ -83,7 +83,7 @@
 // #define CONFIG_EC_EOE
 
 #ifndef CONFIG_EC_EOE_PRIO
-#define CONFIG_EC_EOE_PRIO 1
+#define CONFIG_EC_EOE_PRIO 30
 #endif
 
 #ifndef CONFIG_EC_EOE_STACKSIZE

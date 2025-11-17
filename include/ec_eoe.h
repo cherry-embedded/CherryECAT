@@ -29,12 +29,25 @@ typedef struct ec_eoe {
     ec_datagram_t rx_datagram;
     uint8_t tx_buffer[1536];
     uint8_t rx_buffer[1536];
+    uint32_t max_data_size;
+
+    ec_osal_mq_t tx_pbuf_mq;
+    uint8_t tx_frame_number;
+    uint8_t tx_fragment_number;
+    uint32_t tx_offset;
+    uint32_t tx_total_size;
+    struct pbuf *tx_pbuf;
+    uint8_t rx_frame_number;
+    uint8_t rx_fragment_number;
+    uint32_t rx_offset;
+    uint32_t rx_total_size;
+    struct pbuf *rx_pbuf;
 
     struct ec_eoe_ip_param master_ip_param;
     struct ec_eoe_ip_param slave_ip_param;
 
     bool initialized;
-    ec_osal_thread_t rx_thread;
+    ec_osal_thread_t txrx_thread;
     ec_osal_mutex_t txrx_mutex;
     struct netif netif;
 } ec_eoe_t;

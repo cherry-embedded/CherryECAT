@@ -36,7 +36,7 @@ set(CONFIG_CHERRYECAT_OSAL "freertos")
 
 find_package(hpm-sdk REQUIRED HINTS $ENV{HPM_SDK_BASE})
 
-project(cherryec)
+project(cherryecat)
 
 sdk_compile_definitions(-D__freertos_irq_stack_top=_stack)
 sdk_compile_definitions(-DCONFIG_FREERTOS=1)
@@ -48,8 +48,9 @@ sdk_compile_options("-O2")
 sdk_inc(.)
 sdk_inc(inc)
 sdk_app_src(main.c)
-# sdk_app_src(arch/sys_arch.c tcp_client.c utils_getopt.c ping.c)
+# sdk_inc(iperf)
+# sdk_app_src(arch/sys_arch.c tcp_client.c utils_getopt.c ping.c iperf/iperf.c iperf/iperf_cli.c)
 
-add_subdirectory(../.. cherryec)
+add_subdirectory(../.. cherryecat)
 generate_ses_project()
 
