@@ -54,7 +54,6 @@ EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_us(void)
 #define DWT_CR     (*(volatile uint32_t *)0xE0001000)
 #define DWT_CYCCNT (*(volatile uint32_t *)0xE0001004)
 #define DEM_CR     (*(volatile uint32_t *)0xE000EDFC)
-#define ITM_LAR    (*((volatile unsigned int *)0xE0001FB0))
 
 #define DEM_CR_TRCENA    (1 << 24)
 #define DWT_CR_CYCCNTENA (1 << 0)
