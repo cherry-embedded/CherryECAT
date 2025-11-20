@@ -1048,10 +1048,11 @@ void ec_slaves_scanning(ec_master_t *master)
         }
     }
 
-    if (rescan_required) {
+    if (rescan_required || master->rescan_request) {
         uint32_t count = 0, slave_index, autoinc_address;
         uint8_t step = 0;
 
+        master->rescan_request = false;
         rescan_required = 0;
 
         ec_master_stop(master);

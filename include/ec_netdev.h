@@ -14,7 +14,7 @@ typedef struct ec_netdev {
     ec_master_t *master;
     struct chry_phy_device phydev;
     ec_netdev_index_t index;
-    char name[20];
+    char name[24];
     uint8_t mac_addr[6];
     bool link_state;
     uint8_t tx_frame_index;

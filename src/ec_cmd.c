@@ -107,6 +107,7 @@ static void ec_master_cmd_show_help(void)
     EC_LOG_RAW("Usage: ethercat <command> [options]\n");
     EC_LOG_RAW("Commands:\n");
     EC_LOG_RAW("  master                                         Show master information\n");
+    EC_LOG_RAW("  rescan                                         Request a slaves rescan\n");
     EC_LOG_RAW("  slaves                                         Show slaves overview\n");
     EC_LOG_RAW("  slaves -v                                      Show detailed information for all slaves\n");
     EC_LOG_RAW("  slaves -p <idx>                                Show information for slave <idx>\n");
@@ -699,6 +700,9 @@ int ethercat(int argc, const char **argv)
         return 0;
     } else if (strcmp(argv[1], "master") == 0) {
         ec_master_cmd_master(global_cmd_master);
+        return 0;
+    } else if (strcmp(argv[1], "rescan") == 0) {
+        global_cmd_master->rescan_request = true;
         return 0;
     } else if (strcmp(argv[1], "slaves") == 0) {
         // ethercat slaves
