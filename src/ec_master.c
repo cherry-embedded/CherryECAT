@@ -855,6 +855,13 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
                 pdo_datagram->slave->actual_working_counter = pdo_datagram->datagrams[netdev_idx].working_counter;
             }
         }
+
+        if (pdo_datagram->slave->config && pdo_datagram->slave->config->pdo_callback) {
+            pdo_datagram->slave->config->pdo_callback(pdo_datagram->slave,
+                                                      (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][pdo_datagram->slave->logical_start_address],
+                                                      (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][pdo_datagram->slave->logical_start_address +
+                                                                                                     pdo_datagram->slave->odata_size]);
+        }
     }
 
     if (master->dc_ref_clock) {

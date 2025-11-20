@@ -162,6 +162,11 @@ static ec_sync_info_t cia402_syncs[] = {
     { 3, EC_DIR_INPUT, 1, cia402_txpdos },
 };
 
+void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
+{
+
+}
+
 int ec_start(int argc, const char **argv)
 {
     static ec_slave_config_t slave_cia402_config;
@@ -186,6 +191,7 @@ int ec_start(int argc, const char **argv)
 
     slave_cia402_config.sync = cia402_syncs;
     slave_cia402_config.sync_count = sizeof(cia402_syncs) / sizeof(ec_sync_info_t);
+    slave_cia402_config.pdo_callback = ec_pdo_callback;
 
     slave_dio_config.dc_assign_activate = 0x300;
 
@@ -195,6 +201,7 @@ int ec_start(int argc, const char **argv)
     slave_dio_config.dc_sync[1].shift_time = 0;
     slave_dio_config.sync = dio_syncs;
     slave_dio_config.sync_count = sizeof(dio_syncs) / sizeof(ec_sync_info_t);
+    slave_dio_config.pdo_callback = ec_pdo_callback;
 
     for (uint32_t i = 0; i < g_ec_master.slave_count; i++) {
         if (g_ec_master.slaves[i].sii.vendor_id != 0x0048504D) { // HPMicro
