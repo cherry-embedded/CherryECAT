@@ -770,7 +770,7 @@ uint8_t *ec_master_get_slave_domain_input(ec_master_t *master, uint32_t slave_in
         return NULL;
     }
 
-    return &master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->idata_size];
+    return &master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size];
 }
 
 uint32_t ec_master_get_slave_domain_size(ec_master_t *master, uint32_t slave_index)
