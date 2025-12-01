@@ -46,7 +46,7 @@ ATTR_PLACE_AT_FAST_RAM_BSS_WITH_ALIGNMENT(ENET_SOC_BUFF_ADDR_ALIGNMENT)
 __RW uint8_t tx_buff[ENET_TX_BUFF_COUNT][ENET_TX_BUFF_SIZE]; /* Ethernet Transmit Buffer */
 
 enet_desc_t desc;
-uint8_t mac[ENET_MAC];
+uint8_t mac[ETH_ALEN];
 
 ec_netdev_t g_netdev;
 
@@ -54,7 +54,7 @@ ATTR_WEAK void enet_get_mac_address(uint8_t *mac)
 {
     bool invalid = true;
 
-    uint32_t uuid[(ENET_MAC + (ENET_MAC - 1)) / sizeof(uint32_t)];
+    uint32_t uuid[(ETH_ALEN + (ETH_ALEN - 1)) / sizeof(uint32_t)];
 
     for (int i = 0; i < ARRAY_SIZE(uuid); i++) {
         uuid[i] = otp_read_from_shadow(OTP_SOC_UUID_IDX + i);
@@ -64,7 +64,7 @@ ATTR_WEAK void enet_get_mac_address(uint8_t *mac)
     }
 
     if (invalid == true) {
-        ec_memcpy(mac, &uuid, ENET_MAC);
+        ec_memcpy(mac, &uuid, ETH_ALEN);
     } else {
         mac[0] = MAC_ADDR0;
         mac[1] = MAC_ADDR1;
@@ -211,7 +211,7 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
         }
     }
 
-    ec_memcpy(g_netdev.mac_addr, mac, ENET_MAC);
+    ec_memcpy(g_netdev.mac_addr, mac, ETH_ALEN);
 
     for (uint32_t i = 0; i < ENET_TX_BUFF_COUNT; i++) {
         for (uint8_t j = 0; j < 6; j++) { // dst MAC
