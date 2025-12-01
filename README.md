@@ -44,7 +44,7 @@ The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
 	- Must support long long print
 
 - **Slave**
-	- Must support COE
+	- Must support DC and system time
 	- Must support sdo complete access
 	- SII must have sync manager information
 

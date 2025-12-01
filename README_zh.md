@@ -44,7 +44,7 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 	- 必须支持 64 位打印
 
 - 从站
-	- 必须支持 COE
+	- 必须支持 DC 和 system time 功能
 	- 必须支持 sdo complete access
 	- SII 必须携带 sync manager 信息
 

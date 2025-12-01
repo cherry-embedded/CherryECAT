@@ -476,9 +476,16 @@ static int ec_slave_config(ec_slave_t *slave)
     ec_datagram_t *datagram;
     uint64_t start_time;
     uint8_t step = 0;
+    bool coe_support;
+    uint8_t pdo_sm_count;
+    uint8_t pdo_sm_offset;
     int ret;
 
     datagram = &slave->master->main_datagram;
+
+    coe_support = slave->sii.mailbox_protocols & EC_MBXPROT_COE ? true : false;
+    pdo_sm_count = coe_support ? (slave->sm_count - 2) : slave->sm_count;
+    pdo_sm_offset = coe_support ? 2 : 0;
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_INIT);
     if (ret < 0) {
@@ -563,23 +570,25 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
-    // Config mailbox sm
-    ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * 2);
-    ec_datagram_zero(datagram);
-    for (uint8_t i = 0; i < 2; i++) {
-        ec_slave_sm_config(&slave->sm_info[i], datagram->data + EC_SYNC_PAGE_SIZE * i);
-    }
-    datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
-    if (ret < 0) {
-        step = 7;
-        goto errorout;
-    }
+    if (coe_support) {
+        // Config mailbox sm
+        ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * 2);
+        ec_datagram_zero(datagram);
+        for (uint8_t i = 0; i < 2; i++) {
+            ec_slave_sm_config(&slave->sm_info[i], datagram->data + EC_SYNC_PAGE_SIZE * i);
+        }
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
+        if (ret < 0) {
+            step = 7;
+            goto errorout;
+        }
 
-    slave->configured_rx_mailbox_offset = slave->sm_info[EC_SM_INDEX_MBX_WRITE].physical_start_address;
-    slave->configured_rx_mailbox_size = slave->sm_info[EC_SM_INDEX_MBX_WRITE].length;
-    slave->configured_tx_mailbox_offset = slave->sm_info[EC_SM_INDEX_MBX_READ].physical_start_address;
-    slave->configured_tx_mailbox_size = slave->sm_info[EC_SM_INDEX_MBX_READ].length;
+        slave->configured_rx_mailbox_offset = slave->sm_info[EC_SM_INDEX_MBX_WRITE].physical_start_address;
+        slave->configured_rx_mailbox_size = slave->sm_info[EC_SM_INDEX_MBX_WRITE].length;
+        slave->configured_tx_mailbox_offset = slave->sm_info[EC_SM_INDEX_MBX_READ].physical_start_address;
+        slave->configured_tx_mailbox_size = slave->sm_info[EC_SM_INDEX_MBX_READ].length;
+    }
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_PREOP);
     if (ret < 0) {
@@ -587,7 +596,7 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
-    if (slave->config && slave->sii.general.coe_details.enable_pdo_assign) {
+    if (slave->config && slave->sii.general.coe_details.enable_pdo_assign && coe_support) {
         uint32_t data;
 
         /* Config PDO assignments for 0x1c12, 0x1c13
@@ -702,10 +711,11 @@ static int ec_slave_config(ec_slave_t *slave)
     }
 
     // Config process data sm
-    ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[2]), EC_SYNC_PAGE_SIZE * 2);
+    ec_datagram_fpwr(datagram, slave->station_address,
+                     ESCREG_OF(ESCREG->SYNCM[pdo_sm_offset]), EC_SYNC_PAGE_SIZE * pdo_sm_count);
     ec_datagram_zero(datagram);
-    for (uint8_t i = 0; i < 2; i++) {
-        ec_slave_sm_config(&slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT + i], datagram->data + EC_SYNC_PAGE_SIZE * i);
+    for (uint8_t i = 0; i < pdo_sm_count; i++) {
+        ec_slave_sm_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_SYNC_PAGE_SIZE * i);
     }
     datagram->netdev_idx = slave->netdev_idx;
     ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
@@ -714,10 +724,10 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
-    ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->FMMU[0]), EC_FMMU_PAGE_SIZE * 2);
+    ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->FMMU[0]), EC_FMMU_PAGE_SIZE * pdo_sm_count);
     ec_datagram_zero(datagram);
-    for (uint8_t i = 0; i < 2; i++) {
-        ec_slave_fmmu_config(&slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT + i], datagram->data + EC_FMMU_PAGE_SIZE * i);
+    for (uint8_t i = 0; i < pdo_sm_count; i++) {
+        ec_slave_fmmu_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_FMMU_PAGE_SIZE * i);
     }
     datagram->netdev_idx = slave->netdev_idx;
     ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
@@ -1308,7 +1318,6 @@ void ec_slaves_scanning(ec_master_t *master)
             slave->sii.mailbox_protocols =
                 EC_READ_U16(slave->sii_image + 0x001C);
 
-            EC_ASSERT_MSG(slave->sii.mailbox_protocols & EC_MBXPROT_COE, "Slave %u must support COE\n", slave->index);
             EC_SLAVE_LOG_INFO("Slave %u mbxprot support: %s\n", slave->index, ec_mbox_protocol_string(slave->sii.mailbox_protocols));
 
             cat_data = slave->sii_image + EC_FIRST_SII_CATEGORY_OFFSET;
@@ -1337,8 +1346,6 @@ void ec_slaves_scanning(ec_master_t *master)
                         break;
                     case EC_SII_TYPE_SM:
                         slave->sm_count = (cat_size * 2) / sizeof(ec_sii_sm_t);
-
-                        EC_ASSERT_MSG(slave->sm_count >= 4, "Slave %u has less than 4 sync managers\n", slave->index);
 
                         slave->sm_info = ec_osal_malloc(slave->sm_count * sizeof(ec_sm_info_t));
                         if (!slave->sm_info) {

@@ -587,30 +587,29 @@ static void ec_cmd_show_slave_pdos(ec_master_t *master, uint32_t slave_idx)
                    master->slaves[slave_idx].sm_info[i].control,
                    master->slaves[slave_idx].sm_info[i].enable);
 
-        // if sm is process data output, print rxpdo info
-        if (i == EC_SM_INDEX_PROCESS_DATA_OUTPUT) {
-            for (uint16_t j = 0; j < master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count; j++) {
-                EC_LOG_RAW("\tRxPDO 0x%04x\r\n", master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.entry[j]);
+        if (master->slaves[slave_idx].sm_info[i].fmmu_enable) {
+            // if sm is process data output, print rxpdo info
+            if (master->slaves[slave_idx].sm_info[i].control & (1 << 2)) {
+                for (uint16_t j = 0; j < master->slaves[slave_idx].sm_info[i].pdo_assign.count; j++) {
+                    EC_LOG_RAW("\tRxPDO 0x%04x\r\n", master->slaves[slave_idx].sm_info[i].pdo_assign.entry[j]);
 
-                for (uint16_t k = 0; k < master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[j].count; k++) {
-                    EC_LOG_RAW("\t\tPDO entry 0x%04x:0x%02x, bitlen 0x%02x\r\n",
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[j].entry[k] >> 16 & 0xffff,
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[j].entry[k] >> 8 & 0xff,
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_mapping[j].entry[k] >> 0 & 0xff);
+                    for (uint16_t k = 0; k < master->slaves[slave_idx].sm_info[i].pdo_mapping[j].count; k++) {
+                        EC_LOG_RAW("\t\tPDO entry 0x%04x:0x%02x, bitlen 0x%02x\r\n",
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 16 & 0xffff,
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 8 & 0xff,
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 0 & 0xff);
+                    }
                 }
-            }
-        }
+            } else {
+                for (uint16_t j = 0; j < master->slaves[slave_idx].sm_info[i].pdo_assign.count; j++) {
+                    EC_LOG_RAW("\tTxPDO 0x%04x\r\n", master->slaves[slave_idx].sm_info[i].pdo_assign.entry[j]);
 
-        // if sm is process data input, print txpdo info
-        if (i == EC_SM_INDEX_PROCESS_DATA_INPUT) {
-            for (uint16_t j = 0; j < master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count; j++) {
-                EC_LOG_RAW("\tTxPDO 0x%04x\r\n", master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.entry[j]);
-
-                for (uint16_t k = 0; k < master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[j].count; k++) {
-                    EC_LOG_RAW("\t\tPDO entry 0x%04x:0x%02x, bitlen 0x%02x\r\n",
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[j].entry[k] >> 16 & 0xffff,
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[j].entry[k] >> 8 & 0xff,
-                               master->slaves[slave_idx].sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_mapping[j].entry[k] >> 0 & 0xff);
+                    for (uint16_t k = 0; k < master->slaves[slave_idx].sm_info[i].pdo_mapping[j].count; k++) {
+                        EC_LOG_RAW("\t\tPDO entry 0x%04x:0x%02x, bitlen 0x%02x\r\n",
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 16 & 0xffff,
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 8 & 0xff,
+                                   master->slaves[slave_idx].sm_info[i].pdo_mapping[j].entry[k] >> 0 & 0xff);
+                    }
                 }
             }
         }
