@@ -149,22 +149,46 @@ static ec_pdo_entry_info_t coe402_1a02[] = {
     { 0x0000, 0x00, 0x10 },
 };
 
-static ec_pdo_info_t cia402_rxpdos[] = {
+static ec_pdo_info_t cia402_csv_rxpdos[] = {
     { 0x1602, 3, &coe402_1602[0] },
 };
 
-static ec_pdo_info_t cia402_txpdos[] = {
+static ec_pdo_info_t cia402_csv_txpdos[] = {
     { 0x1a02, 3, &coe402_1a02[0] },
 };
 
-static ec_sync_info_t cia402_syncs[] = {
-    { 2, EC_DIR_OUTPUT, 1, cia402_rxpdos },
-    { 3, EC_DIR_INPUT, 1, cia402_txpdos },
+static ec_sync_info_t cia402_csv_syncs[] = {
+    { 2, EC_DIR_OUTPUT, 1, cia402_csv_rxpdos },
+    { 3, EC_DIR_INPUT, 1, cia402_csv_txpdos },
+};
+
+static ec_pdo_entry_info_t coe402_1601[] = {
+    { 0x6040, 0x00, 0x10 },
+    { 0x607a, 0x00, 0x20 },
+    { 0x0000, 0x00, 0x10 },
+};
+
+static ec_pdo_entry_info_t coe402_1a01[] = {
+    { 0x6041, 0x00, 0x10 },
+    { 0x6064, 0x00, 0x20 },
+    { 0x0000, 0x00, 0x10 },
+};
+
+static ec_pdo_info_t cia402_csp_rxpdos[] = {
+    { 0x1601, 3, &coe402_1601[0] },
+};
+
+static ec_pdo_info_t cia402_csp_txpdos[] = {
+    { 0x1a01, 3, &coe402_1a01[0] },
+};
+
+static ec_sync_info_t cia402_csp_syncs[] = {
+    { 2, EC_DIR_OUTPUT, 1, cia402_csp_rxpdos },
+    { 3, EC_DIR_INPUT, 1, cia402_csp_txpdos },
 };
 
 void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
 {
-
 }
 
 int ec_start(int argc, const char **argv)
@@ -178,7 +202,7 @@ int ec_start(int argc, const char **argv)
     }
 
     if (argc < 2) {
-        printf("Please input: ec_start <cyclic time in us>\r\n");
+        printf("Please input: ec_start <cyclic time in us> mode\r\n");
         return -1;
     }
 
@@ -189,9 +213,23 @@ int ec_start(int argc, const char **argv)
     slave_cia402_config.dc_sync[1].cycle_time = 0;
     slave_cia402_config.dc_sync[1].shift_time = 0;
 
-    slave_cia402_config.sync = cia402_syncs;
-    slave_cia402_config.sync_count = sizeof(cia402_syncs) / sizeof(ec_sync_info_t);
-    slave_cia402_config.pdo_callback = ec_pdo_callback;
+    if (argc >= 3) {
+        if (strncmp(argv[2], "csp", 3) == 0) {
+            motor_mode = MOTOR_MODE_CSP;
+            slave_cia402_config.sync = cia402_csp_syncs;
+            slave_cia402_config.sync_count = sizeof(cia402_csp_syncs) / sizeof(ec_sync_info_t);
+        } else if (strncmp(argv[2], "csv", 3) == 0) {
+            motor_mode = MOTOR_MODE_CSV;
+            slave_cia402_config.sync = cia402_csv_syncs;
+            slave_cia402_config.sync_count = sizeof(cia402_csv_syncs) / sizeof(ec_sync_info_t);
+        } else {
+            printf("Unsupported motor mode, use csv as default\r\n");
+            motor_mode = MOTOR_MODE_CSV;
+            slave_cia402_config.sync = cia402_csv_syncs;
+            slave_cia402_config.sync_count = sizeof(cia402_csv_syncs) / sizeof(ec_sync_info_t);
+        }
+        slave_cia402_config.pdo_callback = ec_pdo_callback;
+    }
 
     slave_dio_config.dc_assign_activate = 0x300;
 
@@ -214,6 +252,7 @@ int ec_start(int argc, const char **argv)
                 g_ec_master.slaves[i].config = &slave_dio_config;
                 break;
             case 0x00000003: // CIA402
+            case 0x00000004: // CIA402 + FOE
                 g_ec_master.slaves[i].config = &slave_cia402_config;
                 break;
 
