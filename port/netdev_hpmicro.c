@@ -306,7 +306,7 @@ EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 
     EC_ASSERT_MSG(dma_tx_desc->tdes0_bm.own == 0, "No free tx buffer available\n");
 
-    return (uint8_t *)dma_tx_desc->tdes2_bm.buffer1;
+    return (uint8_t *)sys_address_to_core_local_mem(BOARD_RUNNING_CORE, dma_tx_desc->tdes2_bm.buffer1);
 }
 
 EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_t size)
