@@ -906,9 +906,9 @@ static void ec_master_find_dc_ref_clock(ec_master_t *master)
     }
 
     ec_datagram_fpwr(&master->dc_ref_sync_datagram,
-                     ref ? ref->station_address : 0xffff, ESCREG_OF(ESCREG->SYS_TIME), ref->base_dc_range == EC_DC_64 ? 8 : 4);
+                     ref ? ref->station_address : 0xffff, ESCREG_OF(ESCREG->SYS_TIME), ref ? (ref->base_dc_range == EC_DC_64 ? 8 : 4) : 4);
     ec_datagram_frmw(&master->dc_all_sync_datagram,
-                     ref ? ref->station_address : 0xffff, ESCREG_OF(ESCREG->SYS_TIME), ref->base_dc_range == EC_DC_64 ? 8 : 4);
+                     ref ? ref->station_address : 0xffff, ESCREG_OF(ESCREG->SYS_TIME), ref ? (ref->base_dc_range == EC_DC_64 ? 8 : 4) : 4);
 }
 
 static void ec_master_calc_topology(ec_master_t *master)
