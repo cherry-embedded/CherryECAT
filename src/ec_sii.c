@@ -52,7 +52,7 @@ sii_check:
         return ret;
     }
 
-    if (EC_READ_U16(datagram->data) & ESC_EEPROM_CTRL_STAT_ERR_ACK_CMD_SHIFT) {
+    if (EC_READ_U16(datagram->data) & ESC_EEPROM_CTRL_STAT_ERR_ACK_CMD_MASK) {
         return -EC_ERR_SII;
     }
 
