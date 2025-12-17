@@ -606,12 +606,12 @@ static int ec_slave_config(ec_slave_t *slave)
          * Set number of assigned entries
         */
         data = 0;
-        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, (slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count > 0xff) ? 2 : 1, false);
         if (ret < 0) {
             step = 9;
             goto errorout;
         }
-        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, (slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count > 0xff) ? 2 : 1, false);
         if (ret < 0) {
             step = 10;
             goto errorout;
@@ -633,13 +633,13 @@ static int ec_slave_config(ec_slave_t *slave)
             }
         }
         data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_OUTPUT].pdo_assign.count;
-        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c12, 0x00, &data, (data > 0xff) ? 2 : 1, false);
         if (ret < 0) {
             step = 13;
             goto errorout;
         }
         data = slave->sm_info[EC_SM_INDEX_PROCESS_DATA_INPUT].pdo_assign.count;
-        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, 2, false);
+        ret = ec_coe_download(slave->master, slave->index, datagram, 0x1c13, 0x00, &data, (data > 0xff) ? 2 : 1, false);
         if (ret < 0) {
             step = 14;
             goto errorout;
