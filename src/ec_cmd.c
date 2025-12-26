@@ -132,10 +132,9 @@ static void ec_master_cmd_show_help(void)
     EC_LOG_RAW("  sii_read -p [idx]                              Read SII\n");
     EC_LOG_RAW("  sii_write -p [idx]                             Write SII\n");
     EC_LOG_RAW("  wc                                             Show master working counter\n");
-#ifdef CONFIG_EC_PERF_ENABLE
-    EC_LOG_RAW("  perf -s <time>                                 Start performance test\n");
+    EC_LOG_RAW("  perf -s                                        Start performance test\n");
+    EC_LOG_RAW("  perf -d                                        Stop performance test\n");
     EC_LOG_RAW("  perf -v                                        Show performance statistics\n");
-#endif
     EC_LOG_RAW("  timediff -s                                    Enable system time diff monitor\n");
     EC_LOG_RAW("  timediff -d                                    Disable system time diff monitor\n");
     EC_LOG_RAW("  timediff -v                                    Show system time diff statistics\n");
@@ -1068,25 +1067,61 @@ int ethercat(int argc, const char **argv)
             ec_osal_leave_critical_section(flags);
         } else if (strcmp(argv[2], "-v") == 0) {
             for (uint32_t i = 0; i < 10; i++) {
-                EC_LOG_RAW("System Time Diff curr = %d, min = %d, max = %d, avg = %d ns\n",
+                EC_LOG_RAW("System Time Diff curr = %u, min = %u, max = %u, avg = %u ns\n",
                            global_cmd_master->curr_systime_diff,
                            global_cmd_master->min_systime_diff,
                            global_cmd_master->max_systime_diff,
-                           global_cmd_master->total_systime_diff / global_cmd_master->systime_diff_count);
+                           (unsigned int)(global_cmd_master->total_systime_diff / global_cmd_master->systime_diff_count));
                 ec_osal_msleep(1000);
             }
         }
         return 0;
-#ifdef CONFIG_EC_PERF_ENABLE
     } else if (strcmp(argv[1], "perf") == 0) {
-        if (argc >= 4 && strcmp(argv[2], "-s") == 0) {
-            ec_perf_init(&global_cmd_master->perf, atoi(argv[3]));
+        if (strcmp(argv[2], "-s") == 0) {
+            uintptr_t flags;
+
+            flags = ec_osal_enter_critical_section();
+            global_cmd_master->perf_enable = true;
+            global_cmd_master->min_period_ns = 0xffffffff;
+            global_cmd_master->max_period_ns = 0;
+            global_cmd_master->total_period_ns = 0;
+            global_cmd_master->period_count = 0;
+
+            global_cmd_master->min_exec_ns = 0xffffffff;
+            global_cmd_master->max_exec_ns = 0;
+            global_cmd_master->total_exec_ns = 0;
+            global_cmd_master->exec_count = 0;
+
+            global_cmd_master->min_offset_ns = 0xffffffff;
+            global_cmd_master->max_offset_ns = 0;
+            ec_osal_leave_critical_section(flags);
             return 0;
-        } else if (argc >= 3 && strcmp(argv[2], "-v") == 0) {
-            ec_perf_print_statistics(&global_cmd_master->perf);
+        } else if (strcmp(argv[2], "-d") == 0) {
+            uintptr_t flags;
+
+            flags = ec_osal_enter_critical_section();
+            global_cmd_master->perf_enable = false;
+            ec_osal_leave_critical_section(flags);
+            return 0;
+        } else if (strcmp(argv[2], "-v") == 0) {
+            for (uint32_t i = 0; i < 10; i++) {
+                EC_LOG_RAW("Period min = %10u, max = %10u, avg = %10u ns\n",
+                           global_cmd_master->min_period_ns,
+                           global_cmd_master->max_period_ns,
+                           (unsigned int)(global_cmd_master->total_period_ns / global_cmd_master->period_count));
+                EC_LOG_RAW("Exec   min = %10u, max = %10u, avg = %10u ns\n",
+                           global_cmd_master->min_exec_ns,
+                           global_cmd_master->max_exec_ns,
+                           (unsigned int)(global_cmd_master->total_exec_ns / global_cmd_master->exec_count));
+
+                EC_LOG_RAW("Offset min = %10d, max = %10d ns\n",
+                           global_cmd_master->min_offset_ns,
+                           global_cmd_master->max_offset_ns);
+
+                ec_osal_msleep(1000);
+            }
             return 0;
         }
-#endif
     } else {
     }
 

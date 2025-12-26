@@ -331,6 +331,7 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_input(ec_netdev_t *netdev)
 
 static ec_htimer_cb g_ec_htimer_cb = NULL;
 static void *g_ec_htimer_arg = NULL;
+static uint32_t g_timer_reload_us_div = 0;
 
 void timer0_esc_callback(timer_callback_args_t *p_args)
 {
@@ -349,13 +350,14 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
     timer_info_t time_info;
 
     R_GPT_InfoGet(&g_timer0_ctrl, &time_info);
-    uint32_t count = us * (time_info.clock_frequency / 1000000);
+
+    g_timer_reload_us_div = time_info.clock_frequency / 1000000;
 
     g_ec_htimer_cb = cb;
     g_ec_htimer_arg = arg;
 
     fsp_err |= R_GPT_CounterSet(&g_timer0_ctrl, 0);
-    fsp_err |= R_GPT_PeriodSet(&g_timer0_ctrl, count);
+    fsp_err |= R_GPT_PeriodSet(&g_timer0_ctrl, us * g_timer_reload_us_div);
     fsp_err |= R_GPT_Start(&g_timer0_ctrl);
 
     if (fsp_err != FSP_SUCCESS) {
@@ -366,6 +368,11 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
 void ec_htimer_stop(void)
 {
     R_GPT_Stop(&g_timer0_ctrl);
+}
+
+EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
+{
+    R_GPT_PeriodSet(&g_timer0_ctrl, us * g_timer_reload_us_div);
 }
 
 void user_ether0_callback(ether_callback_args_t *p_args)
@@ -400,10 +407,12 @@ void user_ether0_callback(ether_callback_args_t *p_args)
     rt_interrupt_leave();
 }
 
+#ifndef CONFIG_EC_TIMESTAMP_CUSTOM
 uint32_t ec_get_cpu_frequency(void)
 {
     return SystemCoreClock;
 }
+#endif
 
 #if defined(SOC_SERIES_R9A07G0)
 volatile uint64_t mtu3_overflow_count = 0;

@@ -20,7 +20,6 @@
 #include "ec_def.h"
 #include "ec_osal.h"
 #include "ec_port.h"
-#include "ec_perf.h"
 #include "ec_timestamp.h"
 #include "ec_version.h"
 #include "ec_datagram.h"
@@ -109,14 +108,28 @@ typedef struct ec_master {
     uint64_t total_systime_diff;
     bool systime_diff_enable;
 
+    bool dc_sync_with_dc_ref_enable; /**< true: Sync the reference clock by dc ref clock, false: by master */
+    uint32_t cycle_time;             /**< Cycle time [ns]. */
+    int32_t shift_time;              /**< Shift time [ns]. */
+    int64_t dc_sync_integral;        /**< DC integral value. */
+
     uint64_t interval;
 
     ec_slave_t *slaves;
     uint32_t slave_count;
 
-#ifdef CONFIG_EC_PERF_ENABLE
-    ec_perf_t perf;
-#endif
+    bool perf_enable;
+    uint64_t last_start_time;
+    uint32_t min_period_ns;
+    uint32_t max_period_ns;
+    uint64_t total_period_ns;
+    uint64_t period_count;
+    uint32_t min_exec_ns;
+    uint32_t max_exec_ns;
+    uint64_t total_exec_ns;
+    uint64_t exec_count;
+    int32_t min_offset_ns;
+    int32_t max_offset_ns;
 
     ec_osal_mutex_t scan_lock;
     ec_osal_thread_t scan_thread;
@@ -133,7 +146,7 @@ typedef struct ec_master {
 
 int ec_master_init(ec_master_t *master, uint8_t master_index);
 void ec_master_deinit(ec_master_t *master);
-int ec_master_start(ec_master_t *master, uint32_t period_us);
+int ec_master_start(ec_master_t *master);
 int ec_master_stop(ec_master_t *master);
 int ec_master_queue_ext_datagram(ec_master_t *master, ec_datagram_t *datagram, bool wakep_poll, bool waiter);
 uint8_t *ec_master_get_slave_domain(ec_master_t *master, uint32_t slave_index);

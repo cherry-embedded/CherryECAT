@@ -60,6 +60,7 @@ The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
 ![ethercat](docs/assets/ethercat7.png)
 ![ethercat](docs/assets/ethercat8.png)
 ![ethercat](docs/assets/ethercat9.png)
+![ethercat](docs/assets/ethercat10.png)
 
 ## Tool
 

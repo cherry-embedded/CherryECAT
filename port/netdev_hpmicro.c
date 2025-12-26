@@ -421,8 +421,9 @@ SDK_DECLARE_EXT_ISR_M(IRQn_ENET1, isr_enet1)
 #define EC_HTIMER_IRQ      BOARD_GPTMR_IRQ
 #define EC_HTIMER_CLK_NAME BOARD_GPTMR_CLK_NAME
 
-ec_htimer_cb g_ec_htimer_cb = NULL;
-void *g_ec_htimer_arg = NULL;
+static ec_htimer_cb g_ec_htimer_cb = NULL;
+static void *g_ec_htimer_arg = NULL;
+static uint32_t g_timer_reload_us_div = 0;
 
 void ec_htimer_isr(void)
 {
@@ -445,8 +446,9 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
 
     clock_add_to_group(EC_HTIMER_CLK_NAME, 0);
     gptmr_freq = clock_get_frequency(EC_HTIMER_CLK_NAME);
+    g_timer_reload_us_div = gptmr_freq / 1000000;
 
-    config.reload = gptmr_freq / 1000000 * us;
+    config.reload = g_timer_reload_us_div * us;
     gptmr_stop_counter(EC_HTIMER, EC_HTIMER_CH);
     gptmr_channel_config(EC_HTIMER, EC_HTIMER_CH, &config, false);
     gptmr_enable_irq(EC_HTIMER, GPTMR_CH_RLD_IRQ_MASK(EC_HTIMER_CH));
@@ -462,7 +464,14 @@ void ec_htimer_stop(void)
     intc_m_disable_irq(EC_HTIMER_IRQ);
 }
 
+EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
+{
+    gptmr_channel_config_update_reload(EC_HTIMER, EC_HTIMER_CH, us * g_timer_reload_us_div);
+}
+
+#ifndef CONFIG_EC_TIMESTAMP_CUSTOM
 uint32_t ec_get_cpu_frequency(void)
 {
     return clock_get_frequency(clock_cpu0);
 }
+#endif

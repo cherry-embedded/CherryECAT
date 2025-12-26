@@ -14,7 +14,6 @@ if(CONFIG_CHERRYECAT)
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_mailbox.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_master.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_netdev.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/ec_perf.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_sii.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_slave.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_timestamp.c

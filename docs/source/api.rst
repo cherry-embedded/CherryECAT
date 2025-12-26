@@ -41,7 +41,7 @@ ec_master_start
 .. code-block:: c
    :linenos:
 
-    int ec_master_start(ec_master_t *master, uint32_t period_us);
+    int ec_master_start(ec_master_t *master);
 
 .. list-table::
     :widths: 10 10
@@ -51,8 +51,6 @@ ec_master_start
       - description
     * - master
       - 主站对象指针
-    * - period_us
-      - 主站周期，单位微秒
 
 ec_master_stop
 ---------------------------

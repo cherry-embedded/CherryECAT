@@ -262,7 +262,10 @@ int ec_start(int argc, const char **argv)
         }
     }
 
-    ec_master_start(&g_ec_master, atoi(argv[1]));
+    g_ec_master.cycle_time = atoi(argv[1]) * 1000;       // cycle time in ns
+    g_ec_master.shift_time = atoi(argv[1]) * 1000 * 0.2; // 20% shift time in ns
+    g_ec_master.dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
+    ec_master_start(&g_ec_master);
     return 0;
 }
 CSH_CMD_EXPORT(ec_start, );
