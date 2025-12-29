@@ -7,82 +7,6 @@
 
 #ifdef CONFIG_EC_CMD_ENABLE
 
-typedef struct {
-    uint32_t slave_count;
-    uint8_t phase;
-    uint8_t active;
-    struct ec_ioctl_device {
-        uint8_t mac_addr[6];
-        uint8_t attached;
-        uint8_t link_state;
-        uint64_t tx_count;
-        uint64_t rx_count;
-        uint64_t tx_bytes;
-        uint64_t rx_bytes;
-        uint64_t tx_errors;
-        int32_t tx_frame_rates[EC_RATE_COUNT];
-        int32_t rx_frame_rates[EC_RATE_COUNT];
-        int32_t tx_byte_rates[EC_RATE_COUNT];
-        int32_t rx_byte_rates[EC_RATE_COUNT];
-    } netdevs[CONFIG_EC_MAX_NETDEVS];
-    uint32_t num_netdevs;
-    uint64_t tx_count;
-    uint64_t rx_count;
-    uint64_t tx_bytes;
-    uint64_t rx_bytes;
-    int32_t tx_frame_rates[EC_RATE_COUNT];
-    int32_t rx_frame_rates[EC_RATE_COUNT];
-    int32_t tx_byte_rates[EC_RATE_COUNT];
-    int32_t rx_byte_rates[EC_RATE_COUNT];
-    int32_t loss_rates[EC_RATE_COUNT];
-    uint64_t app_time;
-    uint64_t dc_ref_time;
-    uint16_t ref_clock;
-} ec_cmd_master_info_t;
-
-typedef struct {
-    uint32_t netdev_idx;
-    uint32_t vendor_id;
-    uint32_t product_code;
-    uint32_t revision_number;
-    uint32_t serial_number;
-    uint16_t alias;
-    uint16_t boot_rx_mailbox_offset;
-    uint16_t boot_rx_mailbox_size;
-    uint16_t boot_tx_mailbox_offset;
-    uint16_t boot_tx_mailbox_size;
-    uint16_t std_rx_mailbox_offset;
-    uint16_t std_rx_mailbox_size;
-    uint16_t std_tx_mailbox_offset;
-    uint16_t std_tx_mailbox_size;
-    uint16_t mailbox_protocols;
-    bool has_general;
-    ec_sii_coe_details_t coe_details;
-    ec_sii_general_flags_t general_flags;
-    int16_t current_on_ebus;
-    struct {
-        ec_slave_port_desc_t desc;
-        ec_slave_port_link_t link;
-        uint32_t receive_time;
-        uint16_t next_slave;
-        uint32_t delay_to_next_dc;
-    } ports[EC_MAX_PORTS];
-    uint8_t base_fmmu_bit_operation;
-    uint8_t base_dc_supported;
-    ec_slave_dc_range_t base_dc_range;
-    uint8_t has_dc_system_time;
-    uint32_t transmission_delay;
-    uint8_t current_state;
-    uint8_t error_flag;
-    uint8_t sync_count;
-    uint16_t sdo_count;
-    uint32_t sii_nwords;
-    char *group;
-    char *image;
-    char *order;
-    char *name;
-} ec_cmd_slave_info_t;
-
 static ec_master_t *global_cmd_master = NULL;
 
 #ifdef CONFIG_EC_EOE
@@ -141,24 +65,6 @@ static void ec_master_cmd_show_help(void)
     EC_LOG_RAW("  help                                           Show this help\n\n");
 }
 
-static const char *ec_slave_state_string(uint8_t state)
-{
-    switch (state) {
-        case 0x01:
-            return "INIT";
-        case 0x02:
-            return "PREOP";
-        case 0x03:
-            return "BOOT";
-        case 0x04:
-            return "SAFEOP";
-        case 0x08:
-            return "OP";
-        default:
-            return "UNKNOWN";
-    }
-}
-
 static const char *ec_port_desc_string(uint8_t desc)
 {
     switch (desc) {
@@ -175,127 +81,16 @@ static const char *ec_port_desc_string(uint8_t desc)
     }
 }
 
-static void ec_master_get_master_info(ec_master_t *master, ec_cmd_master_info_t *info)
-{
-    unsigned int dev_idx;
-    int j;
-
-    info->slave_count = master->slave_count;
-    info->phase = (uint8_t)master->phase;
-
-    for (dev_idx = EC_NETDEV_MAIN; dev_idx < CONFIG_EC_MAX_NETDEVS; dev_idx++) {
-        ec_netdev_t *device = master->netdev[dev_idx];
-
-        ec_memcpy(info->netdevs[dev_idx].mac_addr, device->mac_addr, ETH_ALEN);
-
-        info->netdevs[dev_idx].attached = master->netdev[dev_idx] ? 1 : 0;
-        info->netdevs[dev_idx].link_state = device->link_state ? 1 : 0;
-        info->netdevs[dev_idx].tx_count = device->tx_count;
-        info->netdevs[dev_idx].rx_count = device->rx_count;
-        info->netdevs[dev_idx].tx_bytes = device->tx_bytes;
-        info->netdevs[dev_idx].rx_bytes = device->rx_bytes;
-        info->netdevs[dev_idx].tx_errors = device->tx_errors;
-        for (j = 0; j < EC_RATE_COUNT; j++) {
-            info->netdevs[dev_idx].tx_frame_rates[j] =
-                device->tx_frame_rates[j];
-            info->netdevs[dev_idx].rx_frame_rates[j] =
-                device->rx_frame_rates[j];
-            info->netdevs[dev_idx].tx_byte_rates[j] =
-                device->tx_byte_rates[j];
-            info->netdevs[dev_idx].rx_byte_rates[j] =
-                device->rx_byte_rates[j];
-        }
-    }
-    info->num_netdevs = CONFIG_EC_MAX_NETDEVS;
-
-    info->tx_count = master->netdev_stats.tx_count;
-    info->rx_count = master->netdev_stats.rx_count;
-    info->tx_bytes = master->netdev_stats.tx_bytes;
-    info->rx_bytes = master->netdev_stats.rx_bytes;
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        info->tx_frame_rates[j] =
-            master->netdev_stats.tx_frame_rates[j];
-        info->rx_frame_rates[j] =
-            master->netdev_stats.rx_frame_rates[j];
-        info->tx_byte_rates[j] =
-            master->netdev_stats.tx_byte_rates[j];
-        info->rx_byte_rates[j] =
-            master->netdev_stats.rx_byte_rates[j];
-        info->loss_rates[j] =
-            master->netdev_stats.loss_rates[j];
-    }
-
-    // info->app_time = master->app_time;
-    // info->dc_ref_time = master->dc_ref_time;
-    // info->ref_clock = master->dc_ref_clock ? master->dc_ref_clock->autoinc_address : 0xffff;
-}
-
-static void ec_master_get_slave_info(ec_slave_t *slave, ec_cmd_slave_info_t *info)
-{
-    int i;
-
-    info->netdev_idx = slave->netdev_idx;
-    info->vendor_id = slave->sii.vendor_id;
-    info->product_code = slave->sii.product_code;
-    info->revision_number = slave->sii.revision_number;
-    info->serial_number = slave->sii.serial_number;
-    info->alias = slave->effective_alias;
-    info->boot_rx_mailbox_offset = slave->sii.boot_rx_mailbox_offset;
-    info->boot_rx_mailbox_size = slave->sii.boot_rx_mailbox_size;
-    info->boot_tx_mailbox_offset = slave->sii.boot_tx_mailbox_offset;
-    info->boot_tx_mailbox_size = slave->sii.boot_tx_mailbox_size;
-    info->std_rx_mailbox_offset = slave->sii.std_rx_mailbox_offset;
-    info->std_rx_mailbox_size = slave->sii.std_rx_mailbox_size;
-    info->std_tx_mailbox_offset = slave->sii.std_tx_mailbox_offset;
-    info->std_tx_mailbox_size = slave->sii.std_tx_mailbox_size;
-    info->mailbox_protocols = slave->sii.mailbox_protocols;
-    info->has_general = slave->sii.has_general;
-    info->coe_details = slave->sii.general.coe_details;
-    info->general_flags = slave->sii.general.flags;
-    info->current_on_ebus = slave->sii.general.current_on_ebus;
-    for (i = 0; i < EC_MAX_PORTS; i++) {
-        info->ports[i].desc = slave->ports[i].desc;
-        info->ports[i].link.link_up = slave->ports[i].link.link_up;
-        info->ports[i].link.loop_closed = slave->ports[i].link.loop_closed;
-        info->ports[i].link.signal_detected =
-            slave->ports[i].link.signal_detected;
-        info->ports[i].receive_time = slave->ports[i].receive_time;
-        if (slave->ports[i].next_slave) {
-            info->ports[i].next_slave =
-                slave->ports[i].next_slave->autoinc_address;
-        } else {
-            info->ports[i].next_slave = 0xffff;
-        }
-        info->ports[i].delay_to_next_dc = slave->ports[i].delay_to_next_dc;
-    }
-    info->base_fmmu_bit_operation = slave->base_fmmu_bit_operation;
-    info->base_dc_supported = slave->base_dc_supported;
-    info->base_dc_range = slave->base_dc_range;
-    info->has_dc_system_time = slave->has_dc_system_time;
-    info->transmission_delay = slave->transmission_delay;
-    info->current_state = slave->current_state;
-
-    info->group = ec_slave_get_sii_string(slave, slave->sii.general.groupidx);
-    info->image = ec_slave_get_sii_string(slave, slave->sii.general.imgidx);
-    info->order = ec_slave_get_sii_string(slave, slave->sii.general.orderidx);
-    info->name = ec_slave_get_sii_string(slave, slave->sii.general.nameidx);
-}
-
 void ec_master_cmd_master(ec_master_t *master)
 {
     unsigned int dev_idx, j;
     uint64_t lost;
     double perc;
     int colwidth = 8;
-    ec_cmd_master_info_t data;
-
-    ec_osal_mutex_take(master->scan_lock);
-    ec_master_get_master_info(master, &data);
-    ec_osal_mutex_give(master->scan_lock);
 
     EC_LOG_RAW("Master%d\n", master->index);
     EC_LOG_RAW("  Phase: ");
-    switch (data.phase) {
+    switch (master->phase) {
         case 0:
             EC_LOG_RAW("Waiting for device(s)...");
             break;
@@ -310,97 +105,97 @@ void ec_master_cmd_master(ec_master_t *master)
     }
 
     EC_LOG_RAW("\n");
-    EC_LOG_RAW("  Slaves: %u\n", data.slave_count);
+    EC_LOG_RAW("  Slaves: %u\n", master->slave_count);
     EC_LOG_RAW("  Ethernet net devices:\n");
 
     for (dev_idx = EC_NETDEV_MAIN; dev_idx < CONFIG_EC_MAX_NETDEVS; dev_idx++) {
         EC_LOG_RAW("    %s: ", dev_idx == EC_NETDEV_MAIN ? "Main" : "Backup");
         EC_LOG_RAW("%02x:%02x:%02x:%02x:%02x:%02x\n",
-                   data.netdevs[dev_idx].mac_addr[0],
-                   data.netdevs[dev_idx].mac_addr[1],
-                   data.netdevs[dev_idx].mac_addr[2],
-                   data.netdevs[dev_idx].mac_addr[3],
-                   data.netdevs[dev_idx].mac_addr[4],
-                   data.netdevs[dev_idx].mac_addr[5]);
-        EC_LOG_RAW("      Link: %s\n", data.netdevs[dev_idx].link_state ? "UP" : "DOWN");
-        EC_LOG_RAW("      Tx frames:   %llu\n", data.netdevs[dev_idx].tx_count);
-        EC_LOG_RAW("      Tx bytes:    %llu\n", data.netdevs[dev_idx].tx_bytes);
-        EC_LOG_RAW("      Rx frames:   %llu\n", data.netdevs[dev_idx].rx_count);
-        EC_LOG_RAW("      Rx bytes:    %llu\n", data.netdevs[dev_idx].rx_bytes);
-        EC_LOG_RAW("      Tx errors:   %llu\n", data.netdevs[dev_idx].tx_errors);
+                   master->netdev[dev_idx]->mac_addr[0],
+                   master->netdev[dev_idx]->mac_addr[1],
+                   master->netdev[dev_idx]->mac_addr[2],
+                   master->netdev[dev_idx]->mac_addr[3],
+                   master->netdev[dev_idx]->mac_addr[4],
+                   master->netdev[dev_idx]->mac_addr[5]);
+        EC_LOG_RAW("      Link: %s\n", master->netdev[dev_idx]->link_state ? "UP" : "DOWN");
+        EC_LOG_RAW("      Tx frames:   %llu\n", master->netdev[dev_idx]->tx_count);
+        EC_LOG_RAW("      Tx bytes:    %llu\n", master->netdev[dev_idx]->tx_bytes);
+        EC_LOG_RAW("      Rx frames:   %llu\n", master->netdev[dev_idx]->rx_count);
+        EC_LOG_RAW("      Rx bytes:    %llu\n", master->netdev[dev_idx]->rx_bytes);
+        EC_LOG_RAW("      Tx errors:   %llu\n", master->netdev[dev_idx]->tx_errors);
 
         EC_LOG_RAW("      Tx frame rate [1/s]: ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 0, data.netdevs[dev_idx].tx_frame_rates[j] / 1000.0);
+            EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev[dev_idx]->tx_frame_rates[j] / 1000.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Tx rate [KByte/s]:   ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 1, data.netdevs[dev_idx].tx_byte_rates[j] / 1024.0);
+            EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev[dev_idx]->tx_byte_rates[j] / 1024.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Rx frame rate [1/s]: ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 0, data.netdevs[dev_idx].rx_frame_rates[j] / 1000.0);
+            EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev[dev_idx]->rx_frame_rates[j] / 1000.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Rx rate [KByte/s]:   ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 1, data.netdevs[dev_idx].rx_byte_rates[j] / 1024.0);
+            EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev[dev_idx]->rx_byte_rates[j] / 1024.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n");
     }
 
-    lost = data.tx_count - data.rx_count;
+    lost = master->netdev_stats.tx_count - master->netdev_stats.rx_count;
     if (lost == 1)
         lost = 0;
     EC_LOG_RAW("    Common:\n");
-    EC_LOG_RAW("      Tx frames:   %llu\n", data.tx_count);
-    EC_LOG_RAW("      Tx bytes:    %llu\n", data.tx_bytes);
-    EC_LOG_RAW("      Rx frames:   %llu\n", data.rx_count);
-    EC_LOG_RAW("      Rx bytes:    %llu\n", data.rx_bytes);
+    EC_LOG_RAW("      Tx frames:   %llu\n", master->netdev_stats.tx_count);
+    EC_LOG_RAW("      Tx bytes:    %llu\n", master->netdev_stats.tx_bytes);
+    EC_LOG_RAW("      Rx frames:   %llu\n", master->netdev_stats.rx_count);
+    EC_LOG_RAW("      Rx bytes:    %llu\n", master->netdev_stats.rx_bytes);
     EC_LOG_RAW("      Lost frames: %llu\n", lost);
 
     EC_LOG_RAW("      Tx frame rate [1/s]: ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, data.tx_frame_rates[j] / 1000.0);
+        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.tx_frame_rates[j] / 1000.0);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
     }
     EC_LOG_RAW("\n      Tx rate [KByte/s]:   ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 1, data.tx_byte_rates[j] / 1024.0);
+        EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev_stats.tx_byte_rates[j] / 1024.0);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
     }
     EC_LOG_RAW("\n      Rx frame rate [1/s]: ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, data.rx_frame_rates[j] / 1000.0);
+        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.rx_frame_rates[j] / 1000.0);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
     }
     EC_LOG_RAW("\n      Rx rate [KByte/s]:   ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 1, data.rx_byte_rates[j] / 1024.0);
+        EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev_stats.rx_byte_rates[j] / 1024.0);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
     }
     EC_LOG_RAW("\n      Loss rate [1/s]:     ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, data.loss_rates[j] / 1000.0);
+        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.loss_rates[j] / 1000.0);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
     }
     EC_LOG_RAW("\n      Frame loss [%%]:      ");
     for (j = 0; j < EC_RATE_COUNT; j++) {
         perc = 0.0;
-        if (data.tx_frame_rates[j])
-            perc = 100.0 * data.loss_rates[j] / data.tx_frame_rates[j];
+        if (master->netdev_stats.tx_frame_rates[j])
+            perc = 100.0 * master->netdev_stats.loss_rates[j] / master->netdev_stats.tx_frame_rates[j];
         EC_LOG_RAW("%*.*f", colwidth, 1, perc);
         if (j < EC_RATE_COUNT - 1)
             EC_LOG_RAW(" ");
@@ -412,7 +207,7 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
 {
     unsigned int port_idx;
     ec_slave_t *slave;
-    ec_cmd_slave_info_t data;
+    ec_slave_t slave_data;
 
     if (slave_idx >= master->slave_count) {
         EC_LOG_RAW("No slaves found\n");
@@ -422,38 +217,38 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
     slave = &master->slaves[slave_idx];
 
     ec_osal_mutex_take(master->scan_lock);
-    ec_master_get_slave_info(slave, &data);
+    memcpy(&slave_data, slave, sizeof(ec_slave_t));
     ec_osal_mutex_give(master->scan_lock);
 
     EC_LOG_RAW("=== Master %d, Slave %d ===\n", master->index, slave_idx);
 
-    if (data.alias != 0) {
-        EC_LOG_RAW("Alias: 0x%04x\n", data.alias);
+    if (slave_data.effective_alias != 0) {
+        EC_LOG_RAW("Alias: 0x%04x\n", slave_data.effective_alias);
     }
 
     EC_LOG_RAW("Device: %s\n", master->netdev[slave->netdev_idx]->name);
-    EC_LOG_RAW("State: %s\n", ec_slave_state_string(data.current_state));
+    EC_LOG_RAW("State: %s\n", ec_state_string(slave_data.current_state, 0));
 
     EC_LOG_RAW("Identity:\n");
-    EC_LOG_RAW("  Vendor Id:       0x%08x\n", data.vendor_id);
-    EC_LOG_RAW("  Product code:    0x%08x\n", data.product_code);
-    EC_LOG_RAW("  Revision number: 0x%08x\n", data.revision_number);
-    EC_LOG_RAW("  Serial number:   0x%08x\n", data.serial_number);
+    EC_LOG_RAW("  Vendor Id:       0x%08x\n", slave_data.sii.vendor_id);
+    EC_LOG_RAW("  Product code:    0x%08x\n", slave_data.sii.product_code);
+    EC_LOG_RAW("  Revision number: 0x%08x\n", slave_data.sii.revision_number);
+    EC_LOG_RAW("  Serial number:   0x%08x\n", slave_data.sii.serial_number);
 
     EC_LOG_RAW("DL information:\n");
-    EC_LOG_RAW("  FMMU bit operation: %s\n", (data.base_fmmu_bit_operation ? "yes" : "no"));
+    EC_LOG_RAW("  FMMU bit operation: %s\n", (slave_data.base_fmmu_bit_operation ? "yes" : "no"));
     EC_LOG_RAW("  Distributed clocks: ");
 
-    if (data.base_dc_supported) {
-        if (data.has_dc_system_time) {
+    if (slave_data.base_dc_supported) {
+        if (slave_data.has_dc_system_time) {
             EC_LOG_RAW("yes, ");
-            if (data.base_dc_range) {
+            if (slave_data.base_dc_range) {
                 EC_LOG_RAW("64 bit\n");
             } else {
                 EC_LOG_RAW("32 bit\n");
             }
             EC_LOG_RAW("  DC system time transmission delay: %d ns\n",
-                       data.transmission_delay);
+                       slave_data.transmission_delay);
         } else {
             EC_LOG_RAW("yes, delay measurement only\n");
         }
@@ -462,7 +257,7 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
     }
 
     EC_LOG_RAW("Port  Type  Link  Loop    Signal  NextSlave");
-    if (data.base_dc_supported) {
+    if (slave_data.base_dc_supported) {
         EC_LOG_RAW("  RxTime [ns]  Diff [ns]   NextDc [ns]");
     }
     EC_LOG_RAW("\n");
@@ -470,23 +265,23 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
     for (port_idx = 0; port_idx < EC_MAX_PORTS; port_idx++) {
         EC_LOG_RAW("   %d  %-4s  %-4s  %-6s  %-6s  ",
                    port_idx,
-                   ec_port_desc_string(data.ports[port_idx].desc),
-                   (data.ports[port_idx].link.link_up ? "up" : "down"),
-                   (data.ports[port_idx].link.loop_closed ? "closed" : "open"),
-                   (data.ports[port_idx].link.signal_detected ? "yes" : "no"));
+                   ec_port_desc_string(slave_data.ports[port_idx].desc),
+                   (slave_data.ports[port_idx].link.link_up ? "up" : "down"),
+                   (slave_data.ports[port_idx].link.loop_closed ? "closed" : "open"),
+                   (slave_data.ports[port_idx].link.signal_detected ? "yes" : "no"));
 
-        if (data.ports[port_idx].next_slave != 0xffff) {
-            EC_LOG_RAW("%-9d", data.ports[port_idx].next_slave);
+        if (slave_data.ports[port_idx].next_slave) {
+            EC_LOG_RAW("%-9d", slave_data.ports[port_idx].next_slave->autoinc_address);
         } else {
             EC_LOG_RAW("%-9s", "-");
         }
 
-        if (data.base_dc_supported) {
-            if (!data.ports[port_idx].link.loop_closed) {
+        if (slave_data.base_dc_supported) {
+            if (!slave_data.ports[port_idx].link.loop_closed) {
                 EC_LOG_RAW("  %11u  %10d  %10d",
-                           data.ports[port_idx].receive_time,
-                           data.ports[port_idx].receive_time - data.ports[0].receive_time,
-                           data.ports[port_idx].delay_to_next_dc);
+                           slave_data.ports[port_idx].receive_time,
+                           slave_data.ports[port_idx].receive_time - slave_data.ports[0].receive_time,
+                           slave_data.ports[port_idx].delay_to_next_dc);
             } else {
                 EC_LOG_RAW("  %11s  %10s  %10s", "-", "-", "-");
             }
@@ -495,51 +290,51 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
         EC_LOG_RAW("\n");
     }
 
-    if (data.mailbox_protocols) {
+    if (slave_data.sii.mailbox_protocols) {
         EC_LOG_RAW("Mailboxes:\n");
         EC_LOG_RAW("  Bootstrap RX: 0x%04x/%d, TX: 0x%04x/%d\n",
-                   data.boot_rx_mailbox_offset,
-                   data.boot_rx_mailbox_size,
-                   data.boot_tx_mailbox_offset,
-                   data.boot_tx_mailbox_size);
+                   slave_data.sii.boot_rx_mailbox_offset,
+                   slave_data.sii.boot_rx_mailbox_size,
+                   slave_data.sii.boot_tx_mailbox_offset,
+                   slave_data.sii.boot_tx_mailbox_size);
         EC_LOG_RAW("  Standard  RX: 0x%04x/%d, TX: 0x%04x/%d\n",
-                   data.std_rx_mailbox_offset,
-                   data.std_rx_mailbox_size,
-                   data.std_tx_mailbox_offset,
-                   data.std_tx_mailbox_size);
+                   slave_data.sii.std_rx_mailbox_offset,
+                   slave_data.sii.std_rx_mailbox_size,
+                   slave_data.sii.std_tx_mailbox_offset,
+                   slave_data.sii.std_tx_mailbox_size);
 
-        EC_LOG_RAW("  Supported protocols: %s\n", ec_mbox_protocol_string(data.mailbox_protocols));
+        EC_LOG_RAW("  Supported protocols: %s\n", ec_mbox_protocol_string(slave_data.sii.mailbox_protocols));
     }
 
-    if (data.has_general) {
+    if (slave_data.sii.has_general) {
         EC_LOG_RAW("General:\n");
-        EC_LOG_RAW("  Group: %s\n", data.group ? data.group : "");
-        EC_LOG_RAW("  Image name: %s\n", data.image ? data.image : "");
-        EC_LOG_RAW("  Order number: %s\n", data.order ? data.order : "");
-        EC_LOG_RAW("  Device name: %s\n", data.name ? data.name : "");
+        EC_LOG_RAW("  Group: %s\n", slave->sii.general.groupidx ? ec_slave_get_sii_string(slave, slave->sii.general.groupidx) : "");
+        EC_LOG_RAW("  Image name: %s\n", slave->sii.general.imgidx ? ec_slave_get_sii_string(slave, slave->sii.general.imgidx) : "");
+        EC_LOG_RAW("  Order number: %s\n", slave->sii.general.orderidx ? ec_slave_get_sii_string(slave, slave->sii.general.orderidx) : "");
+        EC_LOG_RAW("  Device name: %s\n", slave->sii.general.nameidx ? ec_slave_get_sii_string(slave, slave->sii.general.nameidx) : "");
 
-        if (data.mailbox_protocols & EC_MBXPROT_COE) {
+        if (slave_data.sii.mailbox_protocols & EC_MBXPROT_COE) {
             EC_LOG_RAW("  CoE details:\n");
             EC_LOG_RAW("    Enable SDO: %s\n",
-                       (data.coe_details.enable_sdo ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_sdo ? "yes" : "no"));
             EC_LOG_RAW("    Enable SDO Info: %s\n",
-                       (data.coe_details.enable_sdo_info ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_sdo_info ? "yes" : "no"));
             EC_LOG_RAW("    Enable PDO Assign: %s\n",
-                       (data.coe_details.enable_pdo_assign ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_pdo_assign ? "yes" : "no"));
             EC_LOG_RAW("    Enable PDO Configuration: %s\n",
-                       (data.coe_details.enable_pdo_configuration ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_pdo_configuration ? "yes" : "no"));
             EC_LOG_RAW("    Enable Upload at startup: %s\n",
-                       (data.coe_details.enable_upload_at_startup ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_upload_at_startup ? "yes" : "no"));
             EC_LOG_RAW("    Enable SDO complete access: %s\n",
-                       (data.coe_details.enable_sdo_complete_access ? "yes" : "no"));
+                       (slave_data.sii.general.coe_details.enable_sdo_complete_access ? "yes" : "no"));
         }
 
         EC_LOG_RAW("  Flags:\n");
         EC_LOG_RAW("    Enable SafeOp: %s\n",
-                   (data.general_flags.enable_safeop ? "yes" : "no"));
+                   (slave_data.sii.general.flags.enable_safeop ? "yes" : "no"));
         EC_LOG_RAW("    Enable notLRW: %s\n",
-                   (data.general_flags.enable_not_lrw ? "yes" : "no"));
-        EC_LOG_RAW("  Current consumption: %d mA\n", data.current_on_ebus);
+                   (slave_data.sii.general.flags.enable_not_lrw ? "yes" : "no"));
+        EC_LOG_RAW("  Current consumption: %d mA\n", slave_data.sii.general.current_on_ebus);
     }
 
     EC_LOG_RAW("\n");
@@ -548,7 +343,6 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
 static void ec_cmd_show_slave_simple(ec_master_t *master, uint32_t slave_idx)
 {
     ec_slave_t *slave;
-    ec_cmd_slave_info_t data;
 
     if (slave_idx >= master->slave_count) {
         EC_LOG_RAW("No slaves found\n");
@@ -556,10 +350,6 @@ static void ec_cmd_show_slave_simple(ec_master_t *master, uint32_t slave_idx)
     }
 
     slave = &master->slaves[slave_idx];
-
-    ec_osal_mutex_take(master->scan_lock);
-    ec_master_get_slave_info(slave, &data);
-    ec_osal_mutex_give(master->scan_lock);
 
     EC_LOG_RAW("%-3u  %u:%04x   %-13s %s\n",
                master->index,
