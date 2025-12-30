@@ -5,13 +5,16 @@
  */
 #include "hpm_clock_drv.h"
 #include "hpm_enet_drv.h"
-#include "hpm_enet_phy_common.h"
 #include "hpm_otp_drv.h"
 #include "hpm_l1c_drv.h"
 #include "board.h"
 #include "ec_master.h"
 
-#if defined(RGMII) && RGMII
+#if !defined(RMII) && !defined(RGMII)
+#error "Please define RMII or RGMII in ec_config.h to choose the ENET interface type"
+#endif
+
+#if defined(RGMII)
 #define ENET_INF_TYPE enet_inf_rgmii
 #define ENET          BOARD_ENET_RGMII
 #else
@@ -81,22 +84,6 @@ hpm_stat_t enet_init(ENET_Type *ptr)
     enet_mac_config_t enet_config;
     enet_tx_control_config_t enet_tx_control_config;
 
-#ifdef CONFIG_EC_PHY_CUSTOM
-#if defined(RGMII) && RGMII
-#if defined(__USE_DP83867) && __USE_DP83867
-    dp83867_config_t phy_config;
-#else
-    rtl8211_config_t phy_config;
-#endif
-#else
-#if defined(__USE_DP83848) && __USE_DP83848
-    dp83848_config_t phy_config;
-#else
-    rtl8201_config_t phy_config;
-#endif
-#endif
-#endif
-
     /* Initialize td, rd and the corresponding buffers */
     memset((uint8_t *)dma_tx_desc_tab, 0x00, sizeof(dma_tx_desc_tab));
     memset((uint8_t *)dma_rx_desc_tab, 0x00, sizeof(dma_rx_desc_tab));
@@ -152,38 +139,6 @@ hpm_stat_t enet_init(ENET_Type *ptr)
     enet_disable_lpi_interrupt(ENET);
 #endif
 
-#ifdef CONFIG_EC_PHY_CUSTOM
-/* Initialize phy */
-#if defined(RGMII) && RGMII
-#if defined(__USE_DP83867) && __USE_DP83867
-    dp83867_reset(ptr);
-#if defined(__DISABLE_AUTO_NEGO) && __DISABLE_AUTO_NEGO
-    dp83867_set_mdi_crossover_mode(ENET, enet_phy_mdi_crossover_manual_mdix);
-#endif
-    dp83867_basic_mode_default_config(ptr, &phy_config);
-    if (dp83867_basic_mode_init(ptr, &phy_config) == true) {
-#else
-    rtl8211_reset(ptr);
-    rtl8211_basic_mode_default_config(ptr, &phy_config);
-    if (rtl8211_basic_mode_init(ptr, &phy_config) == true) {
-#endif
-#else
-#if defined(__USE_DP83848) && __USE_DP83848
-    dp83848_reset(ptr);
-    dp83848_basic_mode_default_config(ptr, &phy_config);
-    if (dp83848_basic_mode_init(ptr, &phy_config) == true) {
-#else
-    rtl8201_reset(ptr);
-    rtl8201_basic_mode_default_config(ptr, &phy_config);
-    if (rtl8201_basic_mode_init(ptr, &phy_config) == true) {
-#endif
-#endif
-        EC_LOG_DBG("Enet phy init passed !\n");
-    } else {
-        EC_LOG_DBG("Enet phy init failed !\n");
-        return status_fail;
-    }
-#endif
     return status_success;
 }
 
@@ -194,7 +149,7 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
 
     /* Reset an enet PHY */
     board_reset_enet_phy(ENET);
-#if defined(RGMII) && RGMII
+#if defined(RGMII)
     /* Set RGMII clock delay */
     board_init_enet_rgmii_clock_delay(ENET);
 #else
@@ -226,7 +181,6 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
     return &g_netdev;
 }
 
-#ifndef CONFIG_EC_PHY_CUSTOM
 void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
 {
     //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
@@ -263,40 +217,6 @@ void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *st
     } else {
     }
 }
-#else
-void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
-{
-    static enet_phy_status_t last_status;
-    enet_phy_status_t status = { 0 };
-
-    enet_line_speed_t line_speed[] = { enet_line_speed_10mbps, enet_line_speed_100mbps, enet_line_speed_1000mbps };
-
-#if defined(RGMII) && RGMII
-#if defined(__USE_DP83867) && __USE_DP83867
-    dp83867_get_phy_status(ENET, &status);
-#else
-    rtl8211_get_phy_status(ENET, &status);
-#endif
-#else
-#if defined(__USE_DP83848) && __USE_DP83848
-    dp83848_get_phy_status(ENET, &status);
-#else
-    rtl8201_get_phy_status(ENET, &status);
-#endif
-#endif
-
-    if (memcmp(&last_status, &status, sizeof(enet_phy_status_t)) != 0) {
-        ec_memcpy(&last_status, &status, sizeof(enet_phy_status_t));
-        if (status.enet_phy_link) {
-            enet_set_line_speed(ENET, line_speed[status.enet_phy_speed]);
-            enet_set_duplex_mode(ENET, status.enet_phy_duplex);
-            netdev->link_state = true;
-        } else {
-            netdev->link_state = false;
-        }
-    }
-}
-#endif
 
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 {
