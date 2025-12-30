@@ -127,6 +127,13 @@ typedef enum {
     /**< Acknowledge/Error bit (no actual state) */
 } ec_slave_state_t;
 
+typedef enum {
+    EC_PORT_NOT_IMPLEMENTED, /**< Port is not implemented. */
+    EC_PORT_NOT_CONFIGURED,  /**< Port is not configured. */
+    EC_PORT_EBUS,            /**< Port is an E-Bus. */
+    EC_PORT_MII              /**< Port is a MII. */
+} ec_slave_port_desc_t;
+
 /** Slave information interface CANopen over EtherCAT details flags.
  */
 typedef struct {

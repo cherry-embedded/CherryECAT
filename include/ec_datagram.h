@@ -45,7 +45,7 @@ typedef struct {
     ec_dlist_t queue;
     ec_dlist_t ext_queue;
     ec_dlist_t sent;
-    ec_netdev_index_t netdev_idx;     /**< Netdev via which the datagram shall be / was sent. */
+    uint8_t netdev_idx;               /**< Netdev via which the datagram shall be / was sent. */
     ec_datagram_type_t type;          /**< Datagram type (APRD, BWR, etc.). */
     bool static_alloc;                /**< True, if \a data is statically allocated. */
     uint8_t address[EC_ADDR_LEN];     /**< Recipient address. */

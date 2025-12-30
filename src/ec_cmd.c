@@ -85,26 +85,27 @@ void ec_master_cmd_master(ec_master_t *master)
 {
     unsigned int dev_idx, j;
     uint64_t lost;
-    double perc;
     int colwidth = 8;
+    ec_netdev_stats_t netdev_stats;
+    uintptr_t flags;
 
     EC_LOG_RAW("Master%d\n", master->index);
     EC_LOG_RAW("  Phase: ");
     switch (master->phase) {
         case 0:
-            EC_LOG_RAW("Waiting for device(s)...");
+            EC_LOG_RAW("Waiting for device attached...\n");
             break;
         case 1:
-            EC_LOG_RAW("Idle");
+            EC_LOG_RAW("Idle\n");
             break;
         case 2:
-            EC_LOG_RAW("Operation");
+            EC_LOG_RAW("Operation\n");
             break;
         default:
-            EC_LOG_RAW("???");
+            EC_LOG_RAW("Unknown\n");
+            break;
     }
 
-    EC_LOG_RAW("\n");
     EC_LOG_RAW("  Slaves: %u\n", master->slave_count);
     EC_LOG_RAW("  Ethernet net devices:\n");
 
@@ -118,89 +119,56 @@ void ec_master_cmd_master(ec_master_t *master)
                    master->netdev[dev_idx]->mac_addr[4],
                    master->netdev[dev_idx]->mac_addr[5]);
         EC_LOG_RAW("      Link: %s\n", master->netdev[dev_idx]->link_state ? "UP" : "DOWN");
-        EC_LOG_RAW("      Tx frames:   %llu\n", master->netdev[dev_idx]->tx_count);
-        EC_LOG_RAW("      Tx bytes:    %llu\n", master->netdev[dev_idx]->tx_bytes);
-        EC_LOG_RAW("      Rx frames:   %llu\n", master->netdev[dev_idx]->rx_count);
-        EC_LOG_RAW("      Rx bytes:    %llu\n", master->netdev[dev_idx]->rx_bytes);
-        EC_LOG_RAW("      Tx errors:   %llu\n", master->netdev[dev_idx]->tx_errors);
+
+        flags = ec_osal_enter_critical_section();
+        memcpy(&netdev_stats, &master->netdev[dev_idx]->stats, sizeof(ec_netdev_stats_t));
+        ec_osal_leave_critical_section(flags);
+
+        EC_LOG_RAW("      Tx frames:   %llu\n", netdev_stats.tx_count);
+        EC_LOG_RAW("      Tx bytes:    %llu\n", netdev_stats.tx_bytes);
+        EC_LOG_RAW("      Rx frames:   %llu\n", netdev_stats.rx_count);
+        EC_LOG_RAW("      Rx bytes:    %llu\n", netdev_stats.rx_bytes);
+        EC_LOG_RAW("      Tx errors:   %llu\n", netdev_stats.tx_errors);
+
+        lost = netdev_stats.loss_count;
+        if (lost == 1)
+            lost = 0;
+        EC_LOG_RAW("      Lost frames: %llu\n", lost);
 
         EC_LOG_RAW("      Tx frame rate [1/s]: ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev[dev_idx]->tx_frame_rates[j] / 1000.0);
+            EC_LOG_RAW("%*.*f", colwidth, 0, netdev_stats.tx_frame_rates[j] / 1000.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Tx rate [KByte/s]:   ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev[dev_idx]->tx_byte_rates[j] / 1024.0);
+            EC_LOG_RAW("%*.*f", colwidth, 1, netdev_stats.tx_byte_rates[j] / 1024.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Rx frame rate [1/s]: ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev[dev_idx]->rx_frame_rates[j] / 1000.0);
+            EC_LOG_RAW("%*.*f", colwidth, 0, netdev_stats.rx_frame_rates[j] / 1000.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
         EC_LOG_RAW("\n      Rx rate [KByte/s]:   ");
         for (j = 0; j < EC_RATE_COUNT; j++) {
-            EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev[dev_idx]->rx_byte_rates[j] / 1024.0);
+            EC_LOG_RAW("%*.*f", colwidth, 1, netdev_stats.rx_byte_rates[j] / 1024.0);
             if (j < EC_RATE_COUNT - 1)
                 EC_LOG_RAW(" ");
         }
+
+        EC_LOG_RAW("\n      Loss rate [1/s]:     ");
+        for (j = 0; j < EC_RATE_COUNT; j++) {
+            EC_LOG_RAW("%*.*f", colwidth, 0, netdev_stats.loss_rates[j] / 1000.0);
+            if (j < EC_RATE_COUNT - 1)
+                EC_LOG_RAW(" ");
+        }
+
         EC_LOG_RAW("\n");
     }
-
-    lost = master->netdev_stats.tx_count - master->netdev_stats.rx_count;
-    if (lost == 1)
-        lost = 0;
-    EC_LOG_RAW("    Common:\n");
-    EC_LOG_RAW("      Tx frames:   %llu\n", master->netdev_stats.tx_count);
-    EC_LOG_RAW("      Tx bytes:    %llu\n", master->netdev_stats.tx_bytes);
-    EC_LOG_RAW("      Rx frames:   %llu\n", master->netdev_stats.rx_count);
-    EC_LOG_RAW("      Rx bytes:    %llu\n", master->netdev_stats.rx_bytes);
-    EC_LOG_RAW("      Lost frames: %llu\n", lost);
-
-    EC_LOG_RAW("      Tx frame rate [1/s]: ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.tx_frame_rates[j] / 1000.0);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n      Tx rate [KByte/s]:   ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev_stats.tx_byte_rates[j] / 1024.0);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n      Rx frame rate [1/s]: ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.rx_frame_rates[j] / 1000.0);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n      Rx rate [KByte/s]:   ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 1, master->netdev_stats.rx_byte_rates[j] / 1024.0);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n      Loss rate [1/s]:     ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        EC_LOG_RAW("%*.*f", colwidth, 0, master->netdev_stats.loss_rates[j] / 1000.0);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n      Frame loss [%%]:      ");
-    for (j = 0; j < EC_RATE_COUNT; j++) {
-        perc = 0.0;
-        if (master->netdev_stats.tx_frame_rates[j])
-            perc = 100.0 * master->netdev_stats.loss_rates[j] / master->netdev_stats.tx_frame_rates[j];
-        EC_LOG_RAW("%*.*f", colwidth, 1, perc);
-        if (j < EC_RATE_COUNT - 1)
-            EC_LOG_RAW(" ");
-    }
-    EC_LOG_RAW("\n");
 }
 
 static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
@@ -222,8 +190,8 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
 
     EC_LOG_RAW("=== Master %d, Slave %d ===\n", master->index, slave_idx);
 
-    if (slave_data.effective_alias != 0) {
-        EC_LOG_RAW("Alias: 0x%04x\n", slave_data.effective_alias);
+    if (slave_data.alias_address != 0) {
+        EC_LOG_RAW("Alias: 0x%04x\n", slave_data.alias_address);
     }
 
     EC_LOG_RAW("Device: %s\n", master->netdev[slave->netdev_idx]->name);

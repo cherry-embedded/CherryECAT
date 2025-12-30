@@ -9,84 +9,6 @@
 
 static void ec_master_period_process(void *arg);
 
-/** List of intervals for statistics [s].
- */
-const unsigned int rate_intervals[] = {
-    1, 10, 60
-};
-
-EC_FAST_CODE_SECTION static void ec_master_update_netdev_stats(ec_master_t *master)
-{
-    ec_netdev_stats_t *s = &master->netdev_stats;
-    int32_t tx_frame_rate, rx_frame_rate, tx_byte_rate, rx_byte_rate, loss_rate;
-    uint64_t loss;
-    unsigned int i, netdev_idx;
-
-    // frame statistics
-    if ((jiffies - s->last_jiffies) < 1000000) {
-        return;
-    }
-
-    tx_frame_rate = (s->tx_count - s->last_tx_count) * 1000;
-    rx_frame_rate = (s->rx_count - s->last_rx_count) * 1000;
-    tx_byte_rate = s->tx_bytes - s->last_tx_bytes;
-    rx_byte_rate = s->rx_bytes - s->last_rx_bytes;
-    loss = s->tx_count - s->rx_count;
-    loss_rate = (loss - s->last_loss) * 1000;
-
-    /* Low-pass filter:
-     *      Y_n = y_(n - 1) + T / tau * (x - y_(n - 1))   | T = 1
-     *   -> Y_n += (x - y_(n - 1)) / tau
-     */
-    for (i = 0; i < EC_RATE_COUNT; i++) {
-        int32_t n = rate_intervals[i];
-        s->tx_frame_rates[i] += (tx_frame_rate - s->tx_frame_rates[i]) / n;
-        s->rx_frame_rates[i] += (rx_frame_rate - s->rx_frame_rates[i]) / n;
-        s->tx_byte_rates[i] += (tx_byte_rate - s->tx_byte_rates[i]) / n;
-        s->rx_byte_rates[i] += (rx_byte_rate - s->rx_byte_rates[i]) / n;
-        s->loss_rates[i] += (loss_rate - s->loss_rates[i]) / n;
-    }
-
-    s->last_tx_count = s->tx_count;
-    s->last_rx_count = s->rx_count;
-    s->last_tx_bytes = s->tx_bytes;
-    s->last_rx_bytes = s->rx_bytes;
-    s->last_loss = loss;
-
-    for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS;
-         netdev_idx++) {
-        ec_netdev_update_stats(master->netdev[netdev_idx]);
-    }
-
-    s->last_jiffies = jiffies;
-}
-
-EC_FAST_CODE_SECTION static void ec_master_clear_netdev_stats(ec_master_t *master)
-{
-    unsigned int i;
-
-    // zero frame statistics
-    master->netdev_stats.tx_count = 0;
-    master->netdev_stats.last_tx_count = 0;
-    master->netdev_stats.rx_count = 0;
-    master->netdev_stats.last_rx_count = 0;
-    master->netdev_stats.tx_bytes = 0;
-    master->netdev_stats.last_tx_bytes = 0;
-    master->netdev_stats.rx_bytes = 0;
-    master->netdev_stats.last_rx_bytes = 0;
-    master->netdev_stats.last_loss = 0;
-
-    for (i = 0; i < EC_RATE_COUNT; i++) {
-        master->netdev_stats.tx_frame_rates[i] = 0;
-        master->netdev_stats.rx_frame_rates[i] = 0;
-        master->netdev_stats.tx_byte_rates[i] = 0;
-        master->netdev_stats.rx_byte_rates[i] = 0;
-        master->netdev_stats.loss_rates[i] = 0;
-    }
-
-    master->netdev_stats.last_jiffies = 0;
-}
-
 EC_FAST_CODE_SECTION static void ec_master_queue_datagram(ec_master_t *master, ec_datagram_t *datagram)
 {
     ec_datagram_t *queued_datagram;
@@ -113,7 +35,7 @@ EC_FAST_CODE_SECTION static void ec_master_unqueue_datagram(ec_master_t *master,
     }
 }
 
-EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, ec_netdev_index_t netdev_idx)
+EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, uint8_t netdev_idx)
 {
     ec_datagram_t *datagram, *next;
     size_t datagram_size;
@@ -223,16 +145,17 @@ EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, e
 }
 
 EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
-                                                      ec_netdev_index_t netdev_idx,
+                                                      uint8_t netdev_idx,
                                                       const uint8_t *frame_data,
                                                       size_t size)
 {
     size_t frame_size, data_size;
     uint8_t datagram_type, datagram_index;
-    unsigned int cmd_follows, matched;
+    uint32_t cmd_follows, matched;
     const uint8_t *cur_data;
-    unsigned int datagram_count;
+    uint32_t datagram_count;
     ec_datagram_t *datagram;
+    uint64_t start_time;
 
     if (size < EC_FRAME_HEADER_SIZE) {
         EC_LOG_ERR("Corrupted frame received on %s (size %u < %u byte)\n",
@@ -254,9 +177,8 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
         return;
     }
 
-#ifdef CONFIG_EC_CAL_RX_TIME
-    uint64_t cycles_start = jiffies;
-#endif
+    start_time = jiffies;
+
     datagram_count = 0;
     cmd_follows = 1;
     while (cmd_follows) {
@@ -317,24 +239,23 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
 
         // dequeue the received datagram
         datagram->state = EC_DATAGRAM_RECEIVED;
-
-        datagram->jiffies_received = master->netdev[EC_NETDEV_MAIN]->jiffies_poll;
+        datagram->jiffies_received = jiffies - start_time;
         ec_master_unqueue_datagram(master, datagram);
 
         datagram_count++;
     }
-#ifdef CONFIG_EC_CAL_RX_TIME
-    EC_LOG_INFO("Recv %u datagrams in %uus.\n", datagram_count, (unsigned int)(jiffies - cycles_start));
-#endif
 }
 
 EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
 {
     ec_datagram_t *datagram, *n;
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
 
     // update netdev statistics
-    ec_master_update_netdev_stats(master);
+    for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS;
+         netdev_idx++) {
+        ec_netdev_update_stats(master->netdev[netdev_idx]);
+    }
 
     // dequeue all datagrams that timed out
     ec_dlist_for_each_entry_safe(datagram, n, &master->datagram_queue, queue)
@@ -365,7 +286,7 @@ EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
             }
 
             // clear frame statistics
-            ec_netdev_clear_stats(master->netdev[netdev_idx]);
+            memset(&master->netdev[netdev_idx]->stats, 0, sizeof(ec_netdev_stats_t));
             continue;
         }
 
@@ -377,7 +298,7 @@ EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
 static void ec_netdev_linkpoll_timer(void *argument)
 {
     ec_master_t *master = (ec_master_t *)argument;
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
         ec_netdev_poll_link_state(master->netdev[netdev_idx]);
@@ -429,7 +350,7 @@ static void ec_master_scan_thread(void *argument)
 
 int ec_master_init(ec_master_t *master, uint8_t master_index)
 {
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
 
     memset(master, 0, sizeof(ec_master_t));
     master->index = master_index;
@@ -447,8 +368,6 @@ int ec_master_init(ec_master_t *master, uint8_t master_index)
         }
         master->netdev[netdev_idx]->master = master;
     }
-
-    ec_master_clear_netdev_stats(master);
 
     ec_datagram_init(&master->main_datagram, EC_MAX_DATA_SIZE);
     ec_datagram_init(&master->dc_ref_sync_datagram, 8);
@@ -498,13 +417,13 @@ int ec_master_start(ec_master_t *master)
     ec_slave_t *slave;
     uint32_t bitlen;
     bool used[2] = { false, false };
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
     uint8_t sm_idx;
 
     EC_ASSERT_MSG(master->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", master->cycle_time);
     EC_ASSERT_MSG(master->cycle_time >= master->shift_time, "Shift time %u ns is larger than cycle time %u ns.\n", master->shift_time, master->cycle_time);
 
-    if (master->active) {
+    if (master->started) {
         return 0;
     }
 
@@ -636,7 +555,7 @@ int ec_master_start(ec_master_t *master)
         master->slaves[i].alstatus_code = 0;
         master->slaves[i].force_update = true;
     }
-    master->active = true;
+    master->started = true;
 
     ec_osal_mutex_give(master->scan_lock);
     return 0;
@@ -645,14 +564,14 @@ int ec_master_start(ec_master_t *master)
 int ec_master_stop(ec_master_t *master)
 {
     ec_pdo_datagram_t *pdo_datagram, *n;
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
 
-    if (!master->active) {
+    if (!master->started) {
         return 0;
     }
 
     ec_osal_mutex_take(master->scan_lock);
-    master->active = false;
+    master->started = false;
 
     for (uint32_t i = 0; i < master->slave_count; i++) {
         master->slaves[i].requested_state = EC_SLAVE_STATE_PREOP;
@@ -837,7 +756,7 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
     ec_pdo_datagram_t *pdo_datagram, *n;
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
     uint64_t dc_ref_systime = 0;
     int32_t offsettime = 0;
     uint32_t delta = 0;
@@ -865,7 +784,7 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
                 }
 
                 if (delta > 0) {
-                    ec_htimer_update((master->cycle_time + offsettime) / 1000);
+                    ec_htimer_update((master->cycle_time / 1000 + offsettime / 1000));
                 }
             }
         } else {

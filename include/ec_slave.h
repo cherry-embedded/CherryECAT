@@ -37,15 +37,6 @@ typedef struct {
     ec_sync_signal_t dc_sync[EC_SYNC_SIGNAL_COUNT]; /**< DC sync signals. */
 } ec_slave_config_t;
 
-/** EtherCAT slave port descriptor.
- */
-typedef enum {
-    EC_PORT_NOT_IMPLEMENTED, /**< Port is not implemented. */
-    EC_PORT_NOT_CONFIGURED,  /**< Port is not configured. */
-    EC_PORT_EBUS,            /**< Port is an E-Bus. */
-    EC_PORT_MII              /**< Port is a MII. */
-} ec_slave_port_desc_t;
-
 /** EtherCAT slave port information.
  */
 typedef struct {
@@ -63,13 +54,13 @@ typedef struct {
 } ec_slave_port_t;
 
 typedef struct ec_slave {
-    uint32_t index;               /**< Index of the slave in the master slave array. */
-    ec_master_t *master;          /**< Master owning the slave. */
-    ec_netdev_index_t netdev_idx; /**< Index of device the slave responds on. */
+    uint32_t index;      /**< Index of the slave in the master slave array. */
+    ec_master_t *master; /**< Master owning the slave. */
+    uint8_t netdev_idx;  /**< Index of device the slave responds on. */
 
     uint16_t autoinc_address; /**< Auto-increment address. */
     uint16_t station_address; /**< Configured station address. */
-    uint16_t effective_alias; /**< Effective alias address. */
+    uint16_t alias_address;   /**< alias address. */
 
     ec_slave_port_t ports[EC_MAX_PORTS]; /**< Port information. */
 

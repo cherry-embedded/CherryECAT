@@ -23,7 +23,7 @@
 static void ec_slave_init(ec_slave_t *slave,
                           uint32_t slave_index,
                           ec_master_t *master,
-                          ec_netdev_index_t netdev_idx,
+                          uint8_t netdev_idx,
                           uint16_t autoinc_address,
                           uint16_t station_address)
 {
@@ -996,7 +996,7 @@ void ec_slaves_scanning(ec_master_t *master)
 {
     ec_datagram_t *datagram;
     ec_slave_t *slave;
-    ec_netdev_index_t netdev_idx;
+    uint8_t netdev_idx;
     bool rescan_required = false;
     unsigned int scan_jiffies;
     int ret;
@@ -1020,7 +1020,7 @@ void ec_slaves_scanning(ec_master_t *master)
 
             for (uint8_t i = EC_NETDEV_MAIN; i < CONFIG_EC_MAX_NETDEVS; i++) {
                 master->slaves_state[i] = 0x00;
-                master->slaves_responding[i] = 0;
+                master->slaves_working_counter[i] = 0;
             }
             master->scan_done = false;
             ec_osal_mutex_give(master->scan_lock);
@@ -1037,15 +1037,15 @@ void ec_slaves_scanning(ec_master_t *master)
             return;
         }
 
-        if (datagram->working_counter != master->slaves_responding[netdev_idx]) {
+        if (datagram->working_counter != master->slaves_working_counter[netdev_idx]) {
             rescan_required = 1;
-            master->slaves_responding[netdev_idx] = datagram->working_counter;
+            master->slaves_working_counter[netdev_idx] = datagram->working_counter;
             EC_LOG_INFO("%u slaves responding on %s device\n",
-                        master->slaves_responding[netdev_idx],
+                        master->slaves_working_counter[netdev_idx],
                         master->netdev[netdev_idx]->name);
         }
 
-        if (master->slaves_responding[netdev_idx] > 0) {
+        if (master->slaves_working_counter[netdev_idx] > 0) {
             uint8_t states = EC_READ_U8(datagram->data);
             if (states != master->slaves_state[netdev_idx]) {
                 // slave states changed
@@ -1077,7 +1077,7 @@ void ec_slaves_scanning(ec_master_t *master)
         scan_jiffies = jiffies;
 
         for (uint8_t i = EC_NETDEV_MAIN; i < CONFIG_EC_MAX_NETDEVS; i++) {
-            count += master->slaves_responding[i];
+            count += master->slaves_working_counter[i];
         }
 
         if (!count) {
@@ -1097,7 +1097,7 @@ void ec_slaves_scanning(ec_master_t *master)
         slave_index = 0;
         for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             autoinc_address = 0;
-            for (uint32_t j = 0; j < master->slaves_responding[netdev_idx]; j++) {
+            for (uint32_t j = 0; j < master->slaves_working_counter[netdev_idx]; j++) {
                 slave = master->slaves + slave_index;
 
                 ec_slave_init(slave, slave_index, master, netdev_idx, (int16_t)autoinc_address * (-1), slave_index + 1001);
@@ -1108,7 +1108,7 @@ void ec_slaves_scanning(ec_master_t *master)
         }
 
         for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-            if (master->slaves_responding[netdev_idx] == 0) {
+            if (master->slaves_working_counter[netdev_idx] == 0) {
                 continue;
             }
             // Clear station address
@@ -1172,18 +1172,14 @@ void ec_slaves_scanning(ec_master_t *master)
             slave->base_build = EC_READ_U16(datagram->data + 2);
 
             slave->base_fmmu_count = EC_READ_U8(datagram->data + 4);
-            if (slave->base_fmmu_count > EC_MAX_FMMUS) {
-                EC_SLAVE_LOG_WRN("Slave has more FMMUs (%u) than the master can handle (%u)\n",
-                                 slave->base_fmmu_count, EC_MAX_FMMUS);
-                slave->base_fmmu_count = EC_MAX_FMMUS;
-            }
+            EC_ASSERT_MSG(slave->base_fmmu_count <= EC_MAX_FMMUS,
+                          "Slave %u FMMU count %u is overflow\n",
+                          slave->index, slave->base_fmmu_count);
 
             slave->base_sync_count = EC_READ_U8(datagram->data + 5);
-            if (slave->base_sync_count > EC_MAX_SYNC_MANAGERS) {
-                EC_SLAVE_LOG_WRN("Slave provides more sync managers (%u) than the master can handle (%u)\n",
-                                 slave->base_sync_count, EC_MAX_SYNC_MANAGERS);
-                slave->base_sync_count = EC_MAX_SYNC_MANAGERS;
-            }
+            EC_ASSERT_MSG(slave->base_sync_count <= EC_MAX_SYNC_MANAGERS,
+                          "Slave %u sync managers count %u is overflow\n",
+                          slave->index, slave->base_fmmu_count);
 
             uint8_t data = EC_READ_U8(datagram->data + 7);
             for (uint8_t i = 0; i < EC_MAX_PORTS; i++) {
@@ -1290,7 +1286,7 @@ void ec_slaves_scanning(ec_master_t *master)
 
             slave->sii.aliasaddr =
                 EC_READ_U16(slave->sii_image + 0x0004);
-            slave->effective_alias = slave->sii.aliasaddr;
+            slave->alias_address = slave->sii.aliasaddr;
             slave->sii.vendor_id =
                 EC_READ_U32(slave->sii_image + 0x0008);
             slave->sii.product_code =
