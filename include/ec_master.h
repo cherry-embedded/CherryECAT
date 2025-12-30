@@ -77,14 +77,6 @@ typedef struct ec_master {
     ec_datagram_t dc_ref_sync_datagram; /**< Datagram used for synchronizing the reference clock to the master clock. */
     ec_datagram_t dc_all_sync_datagram; /**< Datagram used for synchronizing all slaves to the dc ref clock. */
 
-    ec_datagram_t systime_diff_mon_datagram; /**< Datagram used for reading the system time difference between master and reference clock. */
-    bool systime_diff_enable;
-    uint32_t min_systime_diff;
-    uint32_t max_systime_diff;
-    uint32_t curr_systime_diff;
-    uint32_t systime_diff_count;
-    uint64_t total_systime_diff;
-
     bool dc_sync_with_dc_ref_enable; /**< true: Sync the reference clock by dc ref clock, false: by master */
     uint32_t cycle_time;             /**< Cycle time [ns]. */
     int32_t shift_time;              /**< Shift time [ns]. */

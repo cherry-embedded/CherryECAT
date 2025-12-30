@@ -59,9 +59,6 @@ static void ec_master_cmd_show_help(void)
     EC_LOG_RAW("  perf -s                                        Start performance test\n");
     EC_LOG_RAW("  perf -d                                        Stop performance test\n");
     EC_LOG_RAW("  perf -v                                        Show performance statistics\n");
-    EC_LOG_RAW("  timediff -s                                    Enable system time diff monitor\n");
-    EC_LOG_RAW("  timediff -d                                    Disable system time diff monitor\n");
-    EC_LOG_RAW("  timediff -v                                    Show system time diff statistics\n");
     EC_LOG_RAW("  help                                           Show this help\n\n");
 }
 
@@ -804,37 +801,7 @@ int ethercat(int argc, const char **argv)
         return 0;
     }
 #endif
-    else if (argc >= 3 && strcmp(argv[1], "timediff") == 0) {
-        if (strcmp(argv[2], "-s") == 0) {
-            uintptr_t flags;
-
-            flags = ec_osal_enter_critical_section();
-            global_cmd_master->systime_diff_enable = true;
-            global_cmd_master->curr_systime_diff = 0;
-            global_cmd_master->min_systime_diff = 0xffffffff;
-            global_cmd_master->max_systime_diff = 0;
-            global_cmd_master->systime_diff_count = 0;
-            global_cmd_master->total_systime_diff = 0;
-            ec_osal_leave_critical_section(flags);
-
-        } else if (strcmp(argv[2], "-d") == 0) {
-            uintptr_t flags;
-
-            flags = ec_osal_enter_critical_section();
-            global_cmd_master->systime_diff_enable = false;
-            ec_osal_leave_critical_section(flags);
-        } else if (strcmp(argv[2], "-v") == 0) {
-            for (uint32_t i = 0; i < 10; i++) {
-                EC_LOG_RAW("System Time Diff curr = %u, min = %u, max = %u, avg = %u ns\n",
-                           global_cmd_master->curr_systime_diff,
-                           global_cmd_master->min_systime_diff,
-                           global_cmd_master->max_systime_diff,
-                           (unsigned int)(global_cmd_master->total_systime_diff / global_cmd_master->systime_diff_count));
-                ec_osal_msleep(1000);
-            }
-        }
-        return 0;
-    } else if (strcmp(argv[1], "perf") == 0) {
+    else if (strcmp(argv[1], "perf") == 0) {
         if (strcmp(argv[2], "-s") == 0) {
             uintptr_t flags;
 
@@ -850,8 +817,8 @@ int ethercat(int argc, const char **argv)
             global_cmd_master->total_exec_ns = 0;
             global_cmd_master->exec_count = 0;
 
-            global_cmd_master->min_offset_ns = 0xffffffff;
-            global_cmd_master->max_offset_ns = 0;
+            global_cmd_master->min_offset_ns = INT32_MAX;
+            global_cmd_master->max_offset_ns = INT32_MIN;
             ec_osal_leave_critical_section(flags);
             return 0;
         } else if (strcmp(argv[2], "-d") == 0) {

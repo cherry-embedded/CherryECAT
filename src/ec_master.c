@@ -372,9 +372,6 @@ int ec_master_init(ec_master_t *master, uint8_t master_index)
     ec_datagram_init(&master->main_datagram, EC_MAX_DATA_SIZE);
     ec_datagram_init(&master->dc_ref_sync_datagram, 8);
     ec_datagram_init(&master->dc_all_sync_datagram, 8);
-    ec_datagram_init(&master->systime_diff_mon_datagram, 4);
-
-    ec_datagram_brd(&master->systime_diff_mon_datagram, ESCREG_OF(ESCREG->SYS_TIME_DIFF), 4);
 
     master->scan_lock = ec_osal_mutex_create();
     if (!master->scan_lock) {
@@ -439,7 +436,6 @@ int ec_master_start(ec_master_t *master)
     master->phase = EC_OPERATION;
     master->nonperiod_suspend = true;
     master->interval = 0;
-    master->systime_diff_enable = false;
     master->dc_sync_integral = 0;
 
     // wait for non-periodic thread to suspend
@@ -759,7 +755,6 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
     uint8_t netdev_idx;
     uint64_t dc_ref_systime = 0;
     int32_t offsettime = 0;
-    uint32_t delta = 0;
     uint64_t start_time;
     uint32_t period_ns;
     uint32_t exec_ns;
@@ -777,15 +772,7 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
 
                 ec_master_dc_sync_with_pi(master, dc_ref_systime, &offsettime);
 
-                if (offsettime > 0) {
-                    delta = offsettime;
-                } else {
-                    delta = -offsettime;
-                }
-
-                if (delta > 0) {
-                    ec_htimer_update((master->cycle_time / 1000 + offsettime / 1000));
-                }
+                ec_htimer_update(master->cycle_time / 1000 + offsettime / 1000);
             }
         } else {
             EC_WRITE_U32(master->dc_ref_sync_datagram.data, ec_timestamp_get_time_ns() & 0xffffffff);
@@ -822,27 +809,6 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
     ec_dlist_for_each_entry_safe(pdo_datagram, n, &master->pdo_datagram_queue, queue)
     {
         ec_master_queue_datagram(master, &pdo_datagram->datagrams[EC_NETDEV_MAIN]);
-    }
-
-    if (master->systime_diff_enable) {
-        if (master->systime_diff_mon_datagram.state == EC_DATAGRAM_RECEIVED) {
-            master->curr_systime_diff = EC_READ_U32(master->systime_diff_mon_datagram.data) & 0x7fffffff;
-
-            if (master->curr_systime_diff < master->min_systime_diff) {
-                master->min_systime_diff = master->curr_systime_diff;
-            }
-
-            if (master->curr_systime_diff > master->max_systime_diff) {
-                master->max_systime_diff = master->curr_systime_diff;
-            }
-            master->systime_diff_count++;
-            master->total_systime_diff += master->curr_systime_diff;
-        }
-
-        if ((master->interval % 10) == 0) {
-            ec_datagram_zero(&master->systime_diff_mon_datagram);
-            ec_master_queue_datagram(master, &master->systime_diff_mon_datagram);
-        }
     }
 
     ec_master_send(master);
