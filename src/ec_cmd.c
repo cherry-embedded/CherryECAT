@@ -205,18 +205,14 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
     EC_LOG_RAW("  Distributed clocks: ");
 
     if (slave_data.base_dc_supported) {
-        if (slave_data.has_dc_system_time) {
-            EC_LOG_RAW("yes, ");
-            if (slave_data.base_dc_range) {
-                EC_LOG_RAW("64 bit\n");
-            } else {
-                EC_LOG_RAW("32 bit\n");
-            }
-            EC_LOG_RAW("  DC system time transmission delay: %d ns\n",
-                       slave_data.transmission_delay);
+        EC_LOG_RAW("yes, ");
+        if (slave_data.base_dc_range) {
+            EC_LOG_RAW("64 bit\n");
         } else {
-            EC_LOG_RAW("yes, delay measurement only\n");
+            EC_LOG_RAW("32 bit\n");
         }
+        EC_LOG_RAW("  DC system time transmission delay: %d ns\n",
+                   slave_data.transmission_delay);
     } else {
         EC_LOG_RAW("no\n");
     }

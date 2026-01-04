@@ -45,9 +45,6 @@ EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, u
     unsigned int datagram_count, more_datagrams_waiting;
     ec_dlist_t sent_datagrams;
 
-#ifdef CONFIG_EC_CAL_TX_TIME
-    uint64_t cycles_start = jiffies;
-#endif
     datagram_count = 0;
     ec_dlist_init(&sent_datagrams);
 
@@ -138,10 +135,6 @@ EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, u
             datagram_count++;
         }
     } while (more_datagrams_waiting);
-
-#ifdef CONFIG_EC_CAL_TX_TIME
-    EC_LOG_INFO("Sent %u datagrams in %uus.\n", datagram_count, (unsigned int)(jiffies - cycles_start));
-#endif
 }
 
 EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
@@ -155,7 +148,6 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
     const uint8_t *cur_data;
     uint32_t datagram_count;
     ec_datagram_t *datagram;
-    uint64_t start_time;
 
     if (size < EC_FRAME_HEADER_SIZE) {
         EC_LOG_ERR("Corrupted frame received on %s (size %u < %u byte)\n",
@@ -176,8 +168,6 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
         master->stats.corrupted++;
         return;
     }
-
-    start_time = jiffies;
 
     datagram_count = 0;
     cmd_follows = 1;
@@ -239,7 +229,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
 
         // dequeue the received datagram
         datagram->state = EC_DATAGRAM_RECEIVED;
-        datagram->jiffies_received = jiffies - start_time;
+        datagram->jiffies_received = jiffies;
         ec_master_unqueue_datagram(master, datagram);
 
         datagram_count++;

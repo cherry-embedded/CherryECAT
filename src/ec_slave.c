@@ -432,7 +432,7 @@ static int ec_slave_config_dc_systime_and_delay(ec_slave_t *slave)
 
     datagram = &slave->master->main_datagram;
 
-    if (slave->base_dc_supported && slave->has_dc_system_time) {
+    if (slave->base_dc_supported) {
         ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->SYS_TIME), 24);
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
@@ -737,9 +737,7 @@ static int ec_slave_config(ec_slave_t *slave)
     }
 
     if (slave->config && slave->config->dc_assign_activate) {
-        if (!slave->base_dc_supported) {
-            EC_SLAVE_LOG_WRN("Slave %u does not support DC, but DC is activated in master config\n", slave->index);
-        }
+        EC_ASSERT_MSG(slave->base_dc_supported, "Slave %u does not support DC", slave->index);
 
         ec_slave_config_dc_systime_and_delay(slave);
 
@@ -891,7 +889,7 @@ static void ec_master_find_dc_ref_clock(ec_master_t *master)
     for (slave = master->slaves;
          slave < master->slaves + master->slave_count;
          slave++) {
-        if (slave->base_dc_supported && slave->has_dc_system_time) {
+        if (slave->base_dc_supported) {
             ref = slave;
             break;
         }
@@ -1173,12 +1171,12 @@ void ec_slaves_scanning(ec_master_t *master)
 
             slave->base_fmmu_count = EC_READ_U8(datagram->data + 4);
             EC_ASSERT_MSG(slave->base_fmmu_count <= EC_MAX_FMMUS,
-                          "Slave %u FMMU count %u is overflow\n",
+                          "Slave %u FMMU count %u is overflow",
                           slave->index, slave->base_fmmu_count);
 
             slave->base_sync_count = EC_READ_U8(datagram->data + 5);
             EC_ASSERT_MSG(slave->base_sync_count <= EC_MAX_SYNC_MANAGERS,
-                          "Slave %u sync managers count %u is overflow\n",
+                          "Slave %u sync managers count %u is overflow",
                           slave->index, slave->base_fmmu_count);
 
             uint8_t data = EC_READ_U8(datagram->data + 7);
@@ -1201,14 +1199,6 @@ void ec_slaves_scanning(ec_master_t *master)
                 if (ret < 0) {
                     step = 8;
                     goto mutex_unlock;
-                }
-
-                if (datagram->working_counter == 1) {
-                    slave->has_dc_system_time = 1;
-                    EC_SLAVE_LOG_DBG("Slave has the System Time register\n");
-                } else {
-                    slave->has_dc_system_time = 0;
-                    EC_SLAVE_LOG_DBG("Slave has no System Time register; delay measurement only\n");
                 }
 
                 // Read DC port receive times
