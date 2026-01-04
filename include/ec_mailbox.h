@@ -17,12 +17,12 @@ int ec_mailbox_send(ec_master_t *master,
 int ec_mailbox_read_status(ec_master_t *master,
                            uint16_t slave_index,
                            ec_datagram_t *datagram,
-                           uint32_t timeout_us);
+                           uint64_t timeout_ns);
 int ec_mailbox_receive(ec_master_t *master,
                        uint16_t slave_index,
                        ec_datagram_t *datagram,
                        uint8_t *type,
                        uint32_t *size,
-                       uint32_t timeout_us);
+                       uint64_t timeout_ns);
 
 #endif

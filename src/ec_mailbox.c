@@ -5,8 +5,6 @@
  */
 #include "ec_master.h"
 
-#define EC_MBOX_READ_TIMEOUT (100 * 1000)
-
 uint8_t *ec_mailbox_fill_send(ec_master_t *master,
                               uint16_t slave_index,
                               ec_datagram_t *datagram,
@@ -50,7 +48,7 @@ int ec_mailbox_send(ec_master_t *master,
 int ec_mailbox_read_status(ec_master_t *master,
                            uint16_t slave_index,
                            ec_datagram_t *datagram,
-                           uint32_t timeout_us)
+                           uint64_t timeout_ns)
 {
     ec_slave_t *slave;
     uint64_t start_time;
@@ -74,7 +72,7 @@ check_again:
     }
 
     if (!(EC_READ_U8(datagram->data + 5) & ESC_SYNCM_STATUS_MBX_MODE_MASK)) {
-        if ((jiffies - start_time) > timeout_us) {
+        if ((jiffies - start_time) > timeout_ns) {
             return -EC_ERR_MBOX_EMPTY;
         }
         goto check_again;
@@ -88,7 +86,7 @@ int ec_mailbox_receive(ec_master_t *master,
                        ec_datagram_t *datagram,
                        uint8_t *type,
                        uint32_t *size,
-                       uint32_t timeout_us)
+                       uint64_t timeout_ns)
 {
     ec_slave_t *slave;
     uint16_t code;
@@ -102,7 +100,7 @@ int ec_mailbox_receive(ec_master_t *master,
 
     slave = &master->slaves[slave_index];
 
-    ret = ec_mailbox_read_status(master, slave_index, datagram, timeout_us);
+    ret = ec_mailbox_read_status(master, slave_index, datagram, timeout_ns);
     if (ret < 0) {
         return ret;
     }

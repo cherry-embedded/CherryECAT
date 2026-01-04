@@ -20,7 +20,7 @@ EC_FAST_CODE_SECTION void ec_netdev_update_stats(ec_netdev_t *netdev)
 {
     unsigned int i;
 
-    if ((jiffies - netdev->stats.last_jiffies) < 1000000) {
+    if ((jiffies - netdev->stats.last_jiffies) < 1000000000ULL) {
         return;
     }
 

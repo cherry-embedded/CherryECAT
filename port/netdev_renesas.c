@@ -457,9 +457,4 @@ EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_ns(void)
 {
     return (uint64_t)(gpt_get_count() * 5ULL);
 }
-
-EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_us(void)
-{
-    return ec_timestamp_get_time_ns() / 1000ULL;
-}
 #endif

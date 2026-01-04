@@ -34,10 +34,10 @@ void ec_timestamp_init(void)
 {
     g_clock_time_div = ec_get_cpu_frequency() / 1000000;
 
-    uint64_t start_cycle = ec_timestamp_get_time_us();
+    uint64_t start_cycle = ec_timestamp_get_time_ns();
     ec_osal_msleep(10);
 
-    EC_ASSERT_MSG((ec_timestamp_get_time_us() - start_cycle) >= 9000, "Timestamp timer not running\n");
+    EC_ASSERT_MSG((ec_timestamp_get_time_ns() - start_cycle) >= 9000000, "Timestamp timer not running\n");
 }
 
 EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_ns(void)
@@ -45,10 +45,6 @@ EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_ns(void)
     return (riscv_csr_get_core_mcycle() * 1000) / g_clock_time_div;
 }
 
-EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_us(void)
-{
-    return riscv_csr_get_core_mcycle() / g_clock_time_div;
-}
 #elif defined(__arm__) || defined(__ICCARM__) || defined(__ARMCC_VERSION)
 
 #define DWT_CR     (*(volatile uint32_t *)0xE0001000)
@@ -87,22 +83,16 @@ void ec_timestamp_init(void)
 
     DWT_CR |= (uint32_t)DWT_CR_CYCCNTENA;
 
-    uint64_t start_cycle = ec_timestamp_get_time_us();
+    uint64_t start_cycle = ec_timestamp_get_time_ns();
     ec_osal_msleep(10);
 
-    EC_ASSERT_MSG((ec_timestamp_get_time_us() - start_cycle) >= 9000, "Timestamp timer not running\n");
+    EC_ASSERT_MSG((ec_timestamp_get_time_ns() - start_cycle) >= 9000000, "Timestamp timer not running\n");
 }
 
 EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_ns(void)
 {
     return (arm_dwt_get_cycle_count() * 1000) / g_clock_time_div;
 }
-
-EC_FAST_CODE_SECTION uint64_t ec_timestamp_get_time_us(void)
-{
-    return arm_dwt_get_cycle_count() / g_clock_time_div;
-}
-
 #else
 #error "Unsupported architecture"
 #endif

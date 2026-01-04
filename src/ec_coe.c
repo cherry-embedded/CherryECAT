@@ -41,7 +41,7 @@ typedef ec_coe_download_segment_header_t ec_coe_upload_segment_header_t;
  */
 #define EC_COE_DOWN_SEG_MIN_DATA_SIZE 7
 
-#define EC_COE_TIMEOUT_US (1000 * 1000) /* 1s */
+#define EC_COE_TIMEOUT_NS (1000 * 1000 * 1000ULL) /* 1s */
 
 static int ec_coe_download_expedited(ec_master_t *master,
                                      uint16_t slave_index,
@@ -80,7 +80,7 @@ static int ec_coe_download_expedited(ec_master_t *master,
         return ret;
     }
 
-    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_NS);
     if (ret < 0) {
         return ret;
     }
@@ -148,7 +148,7 @@ static int ec_coe_download_common(ec_master_t *master,
         return ret;
     }
 
-    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_NS);
     if (ret < 0) {
         return ret;
     }
@@ -224,7 +224,7 @@ static int ec_coe_download_segment(ec_master_t *master,
         return ret;
     }
 
-    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_NS);
     if (ret < 0) {
         return ret;
     }
@@ -366,7 +366,7 @@ int ec_coe_upload(ec_master_t *master,
         return ret;
     }
 
-    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+    ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_NS);
     if (ret < 0) {
         return ret;
     }
@@ -461,7 +461,7 @@ int ec_coe_upload(ec_master_t *master,
                     return ret;
                 }
 
-                ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_US);
+                ret = ec_mailbox_receive(master, slave_index, datagram, &mbox_proto, &recv_size, EC_COE_TIMEOUT_NS);
                 if (ret < 0) {
                     return ret;
                 }

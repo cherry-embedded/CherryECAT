@@ -105,32 +105,32 @@ errorout1:
     return ret;
 }
 
-/** Get timeout in us.
+/** Get timeout in ns.
  *
  * For defaults see ETG2000_S_R_V1i0i15 section 5.3.6.2.
  */
-unsigned int ec_slave_state_change_timeout_us(ec_slave_state_t old_state, ec_slave_state_t requested_state)
+static uint64_t ec_slave_state_change_timeout_ns(ec_slave_state_t old_state, ec_slave_state_t requested_state)
 {
     ec_slave_state_t from = old_state;
     ec_slave_state_t to = requested_state;
 
     if (from == EC_SLAVE_STATE_INIT &&
         (to == EC_SLAVE_STATE_PREOP || to == EC_SLAVE_STATE_BOOT)) {
-        return (3000 * 1000); // PreopTimeout
+        return (3000 * 1000 * 1000ULL); // PreopTimeout
     }
     if ((from == EC_SLAVE_STATE_PREOP && to == EC_SLAVE_STATE_SAFEOP) ||
         (from == EC_SLAVE_STATE_SAFEOP && to == EC_SLAVE_STATE_OP)) {
-        return (10000 * 1000); // SafeopOpTimeout
+        return (10000 * 1000 * 1000ULL); // SafeopOpTimeout
     }
     if (to == EC_SLAVE_STATE_INIT ||
         ((from == EC_SLAVE_STATE_OP || from == EC_SLAVE_STATE_SAFEOP) && to == EC_SLAVE_STATE_PREOP)) {
-        return (5000 * 1000); // BackToInitTimeout
+        return (5000 * 1000 * 1000ULL); // BackToInitTimeout
     }
     if (from == EC_SLAVE_STATE_OP && to == EC_SLAVE_STATE_SAFEOP) {
-        return (200 * 1000); // BackToSafeopTimeout
+        return (200 * 1000 * 1000ULL); // BackToSafeopTimeout
     }
 
-    return (10000 * 1000); // default [us]
+    return (10000 * 1000 * 1000ULL); // default [ns]
 }
 
 static uint8_t ec_slave_get_previous_port(const ec_slave_t *slave, uint8_t port_index)
@@ -218,7 +218,7 @@ static ec_slave_t *ec_slave_find_next_dc_slave(ec_slave_t *slave)
     return dc_slave;
 }
 
-void ec_slave_calc_port_delays(ec_slave_t *slave)
+static void ec_slave_calc_port_delays(ec_slave_t *slave)
 {
     uint8_t port_index;
     ec_slave_t *next_slave, *next_dc;
@@ -330,7 +330,7 @@ repeat_check:
             return -EC_ERR_ALERR;
         }
     } else {
-        if ((jiffies - start_time) > ec_slave_state_change_timeout_us(slave->current_state, requested_state)) {
+        if ((jiffies - start_time) > ec_slave_state_change_timeout_ns(slave->current_state, requested_state)) {
             return -EC_ERR_TIMEOUT;
         }
         goto repeat_check;
@@ -387,7 +387,7 @@ repeat_check:
             return ec_slave_state_clear_ack_error(slave, requested_state);
         } else {
             old_state = slave->current_state;
-            if ((jiffies - start_time) > ec_slave_state_change_timeout_us(slave->current_state, requested_state)) {
+            if ((jiffies - start_time) > ec_slave_state_change_timeout_ns(slave->current_state, requested_state)) {
                 return -EC_ERR_TIMEOUT;
             }
             goto repeat_check;
@@ -395,7 +395,7 @@ repeat_check:
     }
 
     // still in old state
-    if ((jiffies - start_time) > ec_slave_state_change_timeout_us(slave->current_state, requested_state)) {
+    if ((jiffies - start_time) > ec_slave_state_change_timeout_ns(slave->current_state, requested_state)) {
         return -EC_ERR_TIMEOUT;
     }
     goto repeat_check;
@@ -1372,7 +1372,7 @@ void ec_slaves_scanning(ec_master_t *master)
             }
         }
 
-        EC_LOG_INFO("Bus scanning completed in %u ms\n", (unsigned int)((jiffies - scan_jiffies) / 1000));
+        EC_LOG_INFO("Bus scanning completed in %u ms\n", (unsigned int)((jiffies - scan_jiffies) / 1000000));
         master->scan_done = true;
 
         ec_master_calc_dc(master);

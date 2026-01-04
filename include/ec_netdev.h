@@ -28,7 +28,7 @@ typedef struct {
     int32_t tx_byte_rates[EC_RATE_COUNT];  /**< Transmit rates in byte/s for different statistics cycle periods. */
     int32_t rx_byte_rates[EC_RATE_COUNT];  /**< Receive rates in byte/s for different statistics cycle periods. */
     int32_t loss_rates[EC_RATE_COUNT];     /**< Frame loss rates for different statistics cycle periods. */
-    uint64_t last_jiffies;                 /**< Jiffies of last statistic cycle. */
+    uint64_t last_jiffies;                 /**< Jiffies of last statistic cycle [ns]. */
 } ec_netdev_stats_t;
 
 typedef struct ec_netdev {

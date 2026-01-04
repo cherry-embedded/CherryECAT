@@ -57,8 +57,8 @@ typedef struct {
     ec_datagram_state_t state;        /**< State. */
     uint32_t lrw_read_offset;         /**< Read Offset in LRW datagram. */
     uint32_t lrw_read_size;           /**< Read Size in LRW datagram. */
-    uint64_t jiffies_sent;            /**< Jiffies, when the datagram was sent. */
-    uint64_t jiffies_received;        /**< Jiffies, when the datagram was received. */
+    uint64_t jiffies_sent;            /**< Jiffies [ns], when the datagram was sent. */
+    uint64_t jiffies_received;        /**< Jiffies [ns], when the datagram was received. */
     char name[EC_DATAGRAM_NAME_SIZE]; /**< Description of the datagram. */
     bool waiter;                      /**< True, if someone is waiting for the datagram. */
     ec_osal_sem_t wait;               /**< Semaphore for waiting. */

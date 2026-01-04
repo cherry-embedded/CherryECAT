@@ -8,8 +8,7 @@
 
 void ec_timestamp_init(void);
 uint64_t ec_timestamp_get_time_ns(void);
-uint64_t ec_timestamp_get_time_us(void);
 
-#define jiffies ec_timestamp_get_time_us()
+#define jiffies ec_timestamp_get_time_ns()
 
 #endif

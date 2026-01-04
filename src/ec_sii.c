@@ -5,7 +5,7 @@
  */
 #include "ec_master.h"
 
-#define SII_TIMEOUT_US (200 * 1000) // 200ms
+#define SII_TIMEOUT_NS (200 * 1000 * 1000ULL) // 200ms
 
 static int ec_sii_assign_master(ec_slave_t *slave, ec_datagram_t *datagram)
 {
@@ -57,7 +57,7 @@ sii_check:
     }
 
     if (EC_READ_U16(datagram->data) & ESC_EEPROM_CTRL_STAT_BUSY_MASK) {
-        if ((jiffies - start_time) > SII_TIMEOUT_US) {
+        if ((jiffies - start_time) > SII_TIMEOUT_NS) {
             return -EC_ERR_TIMEOUT;
         }
         goto sii_check;
@@ -102,7 +102,7 @@ sii_check:
     }
 
     if (EC_READ_U16(datagram->data) & ESC_EEPROM_CTRL_STAT_BUSY_MASK) {
-        if ((jiffies - start_time) > SII_TIMEOUT_US) {
+        if ((jiffies - start_time) > SII_TIMEOUT_NS) {
             return -EC_ERR_TIMEOUT;
         }
         goto sii_check;

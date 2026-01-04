@@ -5,7 +5,7 @@
  */
 #include "ec_master.h"
 
-#define EC_DATAGRAM_TIMEOUT_US (50 * 1000) // 50ms
+#define EC_DATAGRAM_TIMEOUT_NS (50 * 1000 * 1000ULL) // 50ms
 
 static void ec_master_period_process(void *arg);
 
@@ -146,6 +146,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
     uint8_t datagram_type, datagram_index;
     uint32_t cmd_follows, matched;
     const uint8_t *cur_data;
+    uint64_t jiffies_received;
     uint32_t datagram_count;
     ec_datagram_t *datagram;
 
@@ -155,6 +156,8 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
         master->stats.corrupted++;
         return;
     }
+
+    jiffies_received = jiffies;
 
     cur_data = frame_data;
 
@@ -171,6 +174,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
 
     datagram_count = 0;
     cmd_follows = 1;
+
     while (cmd_follows) {
         // process datagram header
         datagram_type = EC_READ_U8(cur_data);
@@ -229,7 +233,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
 
         // dequeue the received datagram
         datagram->state = EC_DATAGRAM_RECEIVED;
-        datagram->jiffies_received = jiffies;
+        datagram->jiffies_received = jiffies_received;
         ec_master_unqueue_datagram(master, datagram);
 
         datagram_count++;
@@ -253,7 +257,7 @@ EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
         if (datagram->state != EC_DATAGRAM_SENT)
             continue;
 
-        if ((jiffies - datagram->jiffies_sent) > EC_DATAGRAM_TIMEOUT_US) {
+        if ((jiffies - datagram->jiffies_sent) > EC_DATAGRAM_TIMEOUT_NS) {
             datagram->state = EC_DATAGRAM_TIMED_OUT;
             ec_master_unqueue_datagram(master, datagram);
             master->stats.timeouts++;
