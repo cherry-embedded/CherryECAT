@@ -211,8 +211,11 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
         } else {
             EC_LOG_RAW("32 bit\n");
         }
+        EC_LOG_RAW("  DC system time offset: %lld ns\n",
+                   slave_data.system_time_offset);
         EC_LOG_RAW("  DC system time transmission delay: %d ns\n",
                    slave_data.transmission_delay);
+
     } else {
         EC_LOG_RAW("no\n");
     }

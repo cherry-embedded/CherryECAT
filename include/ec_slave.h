@@ -83,6 +83,7 @@ typedef struct ec_slave {
     uint8_t base_dc_supported;         /**< Distributed clocks are supported. */
     ec_slave_dc_range_t base_dc_range; /**< DC range. */
     uint32_t transmission_delay;       /**< DC system time transmission delay (offset from reference clock). */
+    uint64_t system_time_offset;       /**< Offset to master system time [ns]. */
 
     uint32_t logical_start_address;
     uint32_t odata_size;
