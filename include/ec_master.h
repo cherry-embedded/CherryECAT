@@ -125,4 +125,10 @@ uint32_t ec_master_get_slave_domain_size(ec_master_t *master, uint32_t slave_ind
 uint32_t ec_master_get_slave_domain_osize(ec_master_t *master, uint32_t slave_index);
 uint32_t ec_master_get_slave_domain_isize(ec_master_t *master, uint32_t slave_index);
 
+int ec_master_find_slave_sync_info(uint32_t vendor_id,
+                                   uint32_t product_code,
+                                   uint32_t revision_number,
+                                   uint8_t cia402_mode,
+                                   ec_sync_info_t **syncs,
+                                   uint8_t *sync_count);
 #endif

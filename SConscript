@@ -20,6 +20,7 @@ src += Glob('src/ec_netdev.c')
 src += Glob('src/ec_sii.c')
 src += Glob('src/ec_slave.c')
 src += Glob('src/ec_timestamp.c')
+src += Glob('src/ec_slave_table.c')
 src += Glob('src/phy/chry_phy.c')
 src += Glob('osal/ec_osal_rtthread.c')
 

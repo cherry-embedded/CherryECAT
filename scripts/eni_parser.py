@@ -256,7 +256,7 @@ class ENIParser:
             for pdo in process_data['rx_pdos']:
                 pdo_index = pdo.get('index', 0)
                 pdo_hex = f"{pdo_index:04x}"
-                entries_name = f"{slave_name}_{pdo_hex}"
+                entries_name = f"{slave_name}_output_pdo_entries"
 
                 if entries_name not in rx_entries_generated:
                     lines.append(f"static ec_pdo_entry_info_t {entries_name}[] = {{")
@@ -275,7 +275,7 @@ class ENIParser:
             for pdo in process_data['tx_pdos']:
                 pdo_index = pdo.get('index', 0)
                 pdo_hex = f"{pdo_index:04x}"
-                entries_name = f"{slave_name}_{pdo_hex}"
+                entries_name = f"{slave_name}_input_pdo_entries"
 
                 if entries_name not in tx_entries_generated:
                     lines.append(f"static ec_pdo_entry_info_t {entries_name}[] = {{")
@@ -289,43 +289,46 @@ class ENIParser:
                     lines.append("")
                     tx_entries_generated.add(entries_name)
 
-            # 生成RxPDO info
-            if process_data['rx_pdos']:
-                lines.append(f"static ec_pdo_info_t {slave_name}_rxpdos[] = {{")
+            # 生成统一的PDO info数组（合并RxPDO和TxPDO）
+            if process_data['rx_pdos'] or process_data['tx_pdos']:
+                lines.append(f"static ec_pdo_info_t {slave_name}_pdos[] = {{")
+
+                # 添加RxPDO (输出)
                 for pdo in process_data['rx_pdos']:
                     pdo_index = pdo.get('index', 0)
-                    pdo_hex = f"{pdo_index:04x}"
-                    entries_name = f"{slave_name}_{pdo_hex}"
+                    entries_name = f"{slave_name}_output_pdo_entries"
                     entry_count = len(pdo.get('entries', []))
-                    lines.append(f"    {{ 0x{pdo_index:04x}, {entry_count}, &{entries_name}[0] }},")
-                lines.append("};")
-                lines.append("")
+                    lines.append(f"    {{ 0x{pdo_index:04x}, {entry_count}, {entries_name} }},")
 
-            # 生成TxPDO info
-            if process_data['tx_pdos']:
-                lines.append(f"static ec_pdo_info_t {slave_name}_txpdos[] = {{")
+                # 添加TxPDO (输入)
                 for pdo in process_data['tx_pdos']:
                     pdo_index = pdo.get('index', 0)
-                    pdo_hex = f"{pdo_index:04x}"
-                    entries_name = f"{slave_name}_{pdo_hex}"
+                    entries_name = f"{slave_name}_input_pdo_entries"
                     entry_count = len(pdo.get('entries', []))
-                    lines.append(f"    {{ 0x{pdo_index:04x}, {entry_count}, &{entries_name}[0] }},")
+                    lines.append(f"    {{ 0x{pdo_index:04x}, {entry_count}, {entries_name} }},")
+
                 lines.append("};")
                 lines.append("")
 
             # 生成同步管理器配置
-            lines.append(f"static ec_sync_info_t {slave_name}_syncs[] = {{")
+            if process_data['rx_pdos'] or process_data['tx_pdos']:
+                lines.append(f"static ec_sync_info_t {slave_name}_syncs[] = {{")
 
-            # 添加SM2 (输出)
-            if process_data['rx_pdos']:
-                lines.append(f"    {{ 2, EC_DIR_OUTPUT, {len(process_data['rx_pdos'])}, {slave_name}_rxpdos }},")
+                pdo_index = 0  # PDO数组中的索引
 
-            # 添加SM3 (输入)
-            if process_data['tx_pdos']:
-                lines.append(f"    {{ 3, EC_DIR_INPUT, {len(process_data['tx_pdos'])}, {slave_name}_txpdos }},")
+                # 添加SM2 (输出)
+                if process_data['rx_pdos']:
+                    rx_pdo_count = len(process_data['rx_pdos'])
+                    lines.append(f"    {{ 2, EC_DIR_OUTPUT, {rx_pdo_count}, &{slave_name}_pdos[{pdo_index}], EC_WD_DISABLE }},")
+                    pdo_index += rx_pdo_count
 
-            lines.append("};")
-            lines.append("")
+                # 添加SM3 (输入)
+                if process_data['tx_pdos']:
+                    tx_pdo_count = len(process_data['tx_pdos'])
+                    lines.append(f"    {{ 3, EC_DIR_INPUT, {tx_pdo_count}, &{slave_name}_pdos[{pdo_index}], EC_WD_DISABLE }},")
+
+                lines.append("};")
+                lines.append("")
 
         return "\n".join(lines)
 

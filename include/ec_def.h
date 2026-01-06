@@ -573,4 +573,11 @@ typedef struct {
     ec_watchdog_mode_t watchdog_mode;
 } ec_sync_info_t;
 
+#define EC_CIA402_OPERATION_MODE_NO_MODE 0x00
+#define EC_CIA402_OPERATION_MODE_CSP     0x01
+#define EC_CIA402_OPERATION_MODE_CSV     0x02
+#define EC_CIA402_OPERATION_MODE_CSP_CSV 0x03
+#define EC_CIA402_OPERATION_MODE_CST     0x04
+#define EC_CIA402_OPERATION_MODE_HOME    0x05
+
 #endif

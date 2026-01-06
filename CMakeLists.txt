@@ -17,6 +17,7 @@ if(CONFIG_CHERRYECAT)
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_sii.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_slave.c
         ${CMAKE_CURRENT_LIST_DIR}/src/ec_timestamp.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/ec_slave_table.c
         ${CMAKE_CURRENT_LIST_DIR}/src/phy/chry_phy.c
     )
 
