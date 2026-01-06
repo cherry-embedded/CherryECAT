@@ -11,6 +11,7 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 
 ## Feature
 
+- **RTOS only, do not support Linux and windows** (designed to contrast with the latter)
 - ~ 4K ram, ~40K flash(24K + 16K shell cmd, including log)
 - Asynchronous queue-based transfer (one transfer can carry multiple datagrams)
 - Zero-copy technology: directly use enet tx/rx buffer to fill and parse ethercat data
@@ -105,7 +106,7 @@ Generating C code...
 ## Support Boards
 
 - HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
-- RT-Thread RZN2L-EtherKit/RA8P1 Titan Board
+- RT-Thread RZN2L-EtherKit/RA8P1 Titan/RuiQing Pai
 
 ## Contact
 

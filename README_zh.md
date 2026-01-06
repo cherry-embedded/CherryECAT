@@ -11,6 +11,7 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 
 ## 特性
 
+- **RTOS only, 不支持 Linux 和 windows** （为了和后者对比而设计）
 - ~ 4K ram，~40K flash（24K + 16K shell cmd, including log）
 - 异步队列式传输（一次传输可以携带多个 datagram）
 - 零拷贝技术：直接使用 enet tx/rx buffer 填充和解析 ethercat 数据
@@ -105,7 +106,7 @@ Generating C code...
 ## 支持的开发板
 
 - HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
-- RT-Thread RZN2L-EtherKit/RA8P1 Titan Board
+- RT-Thread RZN2L-EtherKit/RA8P1 Titan/RuiQing Pai
 
 ## 联系
 

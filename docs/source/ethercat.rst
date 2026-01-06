@@ -13,7 +13,7 @@ EtherCAT 寻址模式
 EtherCAT 状态机
 --------------------
 
-EtherCAT 同步
+EtherCAT DC
 --------------------
 
 EtherCAT SII EEPROM
@@ -22,8 +22,8 @@ EtherCAT SII EEPROM
 EtherCAT SM & FMMU
 -----------------------
 
-EtherCAT SDO & PDO
------------------------
+EtherCAT SDO & PDO 通信
+--------------------------
 
 EtherCAT COE
 -----------------------
