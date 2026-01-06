@@ -949,7 +949,7 @@ void ec_slaves_scanning(ec_master_t *master)
     ec_slave_t *slave;
     uint8_t netdev_idx;
     bool rescan_required = false;
-    unsigned int scan_jiffies;
+    uint64_t scan_jiffies;
     uint64_t ref_time[CONFIG_EC_MAX_NETDEVS] = { 0 };
     int ret;
 

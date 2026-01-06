@@ -25,11 +25,19 @@ void ec_master_cmd_eoe_init(ec_eoe_t *master)
 }
 #endif
 
+__WEAK unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
+
+__WEAK void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
+{
+}
+
 static void ec_master_cmd_show_help(void)
 {
     EC_LOG_RAW("CherryECAT " CHERRYECAT_VERSION_STR " Command Line Tool\n\n");
     EC_LOG_RAW("Usage: ethercat <command> [options]\n");
     EC_LOG_RAW("Commands:\n");
+    EC_LOG_RAW("  start <cyclic_time_us> <cia402_mode>           Start master pdo timer\n");
+    EC_LOG_RAW("  stop                                           Stop master pdo timer\n");
     EC_LOG_RAW("  master                                         Show master information\n");
     EC_LOG_RAW("  rescan                                         Request a slaves rescan\n");
     EC_LOG_RAW("  slaves                                         Show slaves overview\n");
@@ -449,6 +457,49 @@ int ethercat(int argc, const char **argv)
 
     if (strcmp(argv[1], "help") == 0) {
         ec_master_cmd_show_help();
+        return 0;
+    } else if (strcmp(argv[1], "start") == 0) {
+        static ec_slave_config_t slave_config[32];
+        uint8_t motor_mode;
+
+        if (argc == 4) {
+            motor_mode = atoi(argv[3]);
+        } else {
+            motor_mode = 0;
+        }
+
+        for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
+            ret = ec_master_find_slave_sync_info(global_cmd_master->slaves[i].sii.vendor_id,
+                                                 global_cmd_master->slaves[i].sii.product_code,
+                                                 global_cmd_master->slaves[i].sii.revision_number,
+                                                 motor_mode,
+                                                 &slave_config[i].sync,
+                                                 &slave_config[i].sync_count);
+            if (ret != 0) {
+                EC_LOG_ERR("Failed to find slave sync info: vendor_id=0x%08x, product_code=0x%08x\n",
+                           global_cmd_master->slaves[i].sii.vendor_id,
+                           global_cmd_master->slaves[i].sii.product_code);
+                return -1;
+            }
+
+            slave_config[i].dc_assign_activate = 0x300;
+
+            slave_config[i].dc_sync[0].cycle_time = atoi(argv[2]) * 1000;
+            slave_config[i].dc_sync[0].shift_time = 1000000;
+            slave_config[i].dc_sync[1].cycle_time = 0;
+            slave_config[i].dc_sync[1].shift_time = 0;
+            slave_config[i].pdo_callback = ec_pdo_callback;
+
+            global_cmd_master->slaves[i].config = &slave_config[i];
+        }
+
+        global_cmd_master->cycle_time = atoi(argv[2]) * 1000;       // cycle time in ns
+        global_cmd_master->shift_time = atoi(argv[2]) * 1000 * 0.2; // 20% shift time in ns
+        global_cmd_master->dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
+        ec_master_start(global_cmd_master);
+        return 0;
+    } else if (strcmp(argv[1], "stop") == 0) {
+        ec_master_stop(global_cmd_master);
         return 0;
     } else if (strcmp(argv[1], "master") == 0) {
         ec_master_cmd_master(global_cmd_master);
