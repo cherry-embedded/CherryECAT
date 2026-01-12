@@ -218,12 +218,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
             datagram->type != EC_DATAGRAM_FPWR &&
             datagram->type != EC_DATAGRAM_BWR &&
             datagram->type != EC_DATAGRAM_LWR) {
-            // copy received data into the datagram memory, only copy the read part, do not modify the write part
-            if (datagram->type == EC_DATAGRAM_LRW) {
-                ec_memcpy(datagram->data + datagram->lrw_read_offset, cur_data + datagram->lrw_read_offset, datagram->lrw_read_size);
-            } else {
-                ec_memcpy(datagram->data, cur_data, data_size);
-            }
+            ec_memcpy(datagram->data, cur_data, data_size);
         }
         cur_data += data_size;
 
@@ -351,7 +346,6 @@ int ec_master_init(ec_master_t *master, uint8_t master_index)
     master->datagram_index = 1; // start with index 1
 
     ec_dlist_init(&master->datagram_queue);
-    ec_dlist_init(&master->pdo_datagram_queue);
 
     ec_timestamp_init();
 
@@ -407,8 +401,6 @@ int ec_master_start(ec_master_t *master)
 {
     ec_slave_t *slave;
     uint32_t bitlen;
-    bool used[2] = { false, false };
-    uint8_t netdev_idx;
     uint8_t sm_idx;
 
     EC_ASSERT_MSG(master->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", master->cycle_time);
@@ -490,54 +482,34 @@ int ec_master_start(ec_master_t *master)
             master->actual_pdo_size += (bitlen + 7) / 8;
 
             if (slave->config->sync[i].dir == EC_DIR_INPUT) {
-                used[EC_DIR_INPUT] = true;
                 slave->idata_size += (bitlen + 7) / 8;
             }
             if (slave->config->sync[i].dir == EC_DIR_OUTPUT) {
-                used[EC_DIR_OUTPUT] = true;
                 slave->odata_size += (bitlen + 7) / 8;
             }
         }
-
-        ec_pdo_datagram_t *pdo_datagram;
-
-        pdo_datagram = (ec_pdo_datagram_t *)ec_osal_malloc(sizeof(ec_pdo_datagram_t));
-        if (!pdo_datagram) {
-            return -1;
-        }
-        memset(pdo_datagram, 0, sizeof(ec_pdo_datagram_t));
-
-        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-            ec_datagram_init_static(&pdo_datagram->datagrams[netdev_idx], &master->pdo_buffer[netdev_idx][slave->logical_start_address],
-                                    slave->odata_size + slave->idata_size);
-            pdo_datagram->datagrams[netdev_idx].netdev_idx = netdev_idx;
-
-            if (used[EC_DIR_OUTPUT] && used[EC_DIR_INPUT]) {
-                ec_datagram_lrw(&pdo_datagram->datagrams[netdev_idx], slave->logical_start_address, slave->odata_size + slave->idata_size);
-                pdo_datagram->datagrams[netdev_idx].lrw_read_offset = slave->odata_size;
-                pdo_datagram->datagrams[netdev_idx].lrw_read_size = slave->idata_size;
-                pdo_datagram->expected_working_counter = 3;
-            } else if (used[EC_DIR_INPUT]) {
-                ec_datagram_lrd(&pdo_datagram->datagrams[netdev_idx], slave->logical_start_address, slave->idata_size);
-                pdo_datagram->expected_working_counter = 1;
-            } else if (used[EC_DIR_OUTPUT]) {
-                ec_datagram_lwr(&pdo_datagram->datagrams[netdev_idx], slave->logical_start_address, slave->odata_size);
-                pdo_datagram->expected_working_counter = 1;
-            }
-            ec_datagram_zero(&pdo_datagram->datagrams[netdev_idx]);
-        }
-        slave->expected_working_counter = pdo_datagram->expected_working_counter;
+#ifdef CONFIG_EC_PDO_MULTI_DOMAIN
+        ec_datagram_init_static(&slave->pdo_datagram,
+                                &master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                slave->odata_size + slave->idata_size);
+        ec_datagram_lrw(&slave->pdo_datagram, slave->logical_start_address, slave->odata_size + slave->idata_size);
+        ec_datagram_zero(&slave->pdo_datagram);
+#endif
+        slave->expected_working_counter = 3;
         master->expected_working_counter += slave->expected_working_counter;
-        pdo_datagram->slave = slave;
 
         EC_SLAVE_LOG_INFO("Slave %u: Logical address 0x%08x, obyte %u, ibyte %u, expected working counter %u\n",
                           slave->index,
                           slave->logical_start_address, slave->odata_size, slave->idata_size,
                           slave->expected_working_counter);
-
-        ec_dlist_add_tail(&master->pdo_datagram_queue, &pdo_datagram->queue);
     }
-
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    ec_datagram_init_static(&master->pdo_datagram,
+                            &master->pdo_buffer[EC_NETDEV_MAIN][0],
+                            master->actual_pdo_size);
+    ec_datagram_lrw(&master->pdo_datagram, 0, master->actual_pdo_size);
+    ec_datagram_zero(&master->pdo_datagram);
+#endif
     ec_htimer_start(master->cycle_time / 1000, ec_master_period_process, master);
 
     for (uint32_t i = 0; i < master->slave_count; i++) {
@@ -553,7 +525,6 @@ int ec_master_start(ec_master_t *master)
 
 int ec_master_stop(ec_master_t *master)
 {
-    ec_pdo_datagram_t *pdo_datagram, *n;
     uint8_t netdev_idx;
 
     if (!master->started) {
@@ -584,15 +555,13 @@ int ec_master_stop(ec_master_t *master)
 
 out:
     ec_htimer_stop();
-
-    ec_dlist_for_each_entry_safe(pdo_datagram, n, &master->pdo_datagram_queue, queue)
-    {
-        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-            ec_datagram_clear(&pdo_datagram->datagrams[netdev_idx]);
-        }
-        ec_dlist_del_init(&pdo_datagram->queue);
-        ec_osal_free(pdo_datagram);
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    ec_datagram_clear(&master->pdo_datagram);
+#else
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        ec_datagram_clear(&master->slaves[i].pdo_datagram);
     }
+#endif
 
     ec_master_enter_idle(master);
 
@@ -745,9 +714,8 @@ EC_FAST_CODE_SECTION static void ec_master_dc_sync_with_pi(ec_master_t *master, 
 EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
-    ec_pdo_datagram_t *pdo_datagram, *n;
-    uint8_t netdev_idx;
     uint64_t dc_ref_systime = 0;
+    ec_slave_t *slave;
     int32_t offsettime = 0;
     uint64_t start_time;
     uint32_t period_ns;
@@ -778,33 +746,48 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
     }
 
     master->actual_working_counter = 0;
-    ec_dlist_for_each_entry_safe(pdo_datagram, n, &master->pdo_datagram_queue, queue)
-    {
-        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-            if (pdo_datagram->datagrams[netdev_idx].state == EC_DATAGRAM_RECEIVED) {
-                master->actual_working_counter += pdo_datagram->datagrams[netdev_idx].working_counter;
-                pdo_datagram->slave->actual_working_counter = pdo_datagram->datagrams[netdev_idx].working_counter;
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+        for (uint32_t i = 0; i < master->slave_count; i++) {
+            slave = &master->slaves[i];
+
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
             }
         }
+        master->actual_working_counter = master->pdo_datagram.working_counter;
+    }
+#else
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        slave = &master->slaves[i];
 
-        if (pdo_datagram->slave->config && pdo_datagram->slave->config->pdo_callback) {
-            pdo_datagram->slave->config->pdo_callback(pdo_datagram->slave,
-                                                      (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][pdo_datagram->slave->logical_start_address],
-                                                      (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][pdo_datagram->slave->logical_start_address +
-                                                                                                     pdo_datagram->slave->odata_size]);
+        if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
+            }
+            master->actual_working_counter += slave->pdo_datagram.working_counter;
+            slave->actual_working_counter = slave->pdo_datagram.working_counter;
         }
     }
+#endif
 
     if (master->dc_ref_clock) {
         ec_datagram_zero(&master->dc_all_sync_datagram);
         ec_master_queue_datagram(master, &master->dc_all_sync_datagram);
     }
 
-    ec_dlist_for_each_entry_safe(pdo_datagram, n, &master->pdo_datagram_queue, queue)
-    {
-        ec_master_queue_datagram(master, &pdo_datagram->datagrams[EC_NETDEV_MAIN]);
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    ec_master_queue_datagram(master, &master->pdo_datagram);
+#else
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        slave = &master->slaves[i];
+        ec_master_queue_datagram(master, &slave->pdo_datagram);
     }
-
+#endif
     ec_master_send(master);
 
     period_ns = start_time - master->last_start_time;

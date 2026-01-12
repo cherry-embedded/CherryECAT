@@ -100,6 +100,8 @@ typedef struct ec_slave {
     uint8_t sm_count; /**< Number of sync managers. */
 
     ec_slave_config_t *config; /**< Slave custom configuration. */
+
+    ec_datagram_t pdo_datagram; /**< PDO datagram for the slave. */
 } ec_slave_t;
 
 void ec_slaves_scanning(ec_master_t *master);

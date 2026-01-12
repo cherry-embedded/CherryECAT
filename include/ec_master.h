@@ -44,16 +44,6 @@ typedef enum {
     EC_OPERATION /**< Operation phase. The master was requested by a realtime application. */
 } ec_master_phase_t;
 
-typedef struct {
-    ec_dlist_t queue;
-    ec_datagram_t datagrams[CONFIG_EC_MAX_NETDEVS];
-#if CONFIG_EC_MAX_NETDEVS > 1
-    uint8_t *send_buffer;
-#endif
-    uint32_t expected_working_counter;
-    ec_slave_t *slave;
-} ec_pdo_datagram_t;
-
 typedef struct ec_master {
     uint8_t index;
     ec_netdev_t *netdev[CONFIG_EC_MAX_NETDEVS];
@@ -68,9 +58,9 @@ typedef struct ec_master {
     ec_master_phase_t phase;
 
     ec_datagram_t main_datagram; /**< Main datagram for slave scan & state change & config & sii */
+    ec_datagram_t pdo_datagram;  /**< pdo datagram */
 
-    ec_dlist_t datagram_queue;     /**< Queue of pending datagrams*/
-    ec_dlist_t pdo_datagram_queue; /**< Queue of pdo datagrams*/
+    ec_dlist_t datagram_queue; /**< Queue of pending datagrams*/
     uint8_t datagram_index;
 
     ec_slave_t *dc_ref_clock;           /**< DC reference clock slave. */

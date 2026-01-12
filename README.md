@@ -26,10 +26,11 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 - Support Slave SII access
 - Support Slave register access
 - Support multi master
-- **Support backup redundancy(TODO)**
+- Support PDO transfer with single domain or multi domain（single domain：all slaves share one LRW datagram，multi domain：each slave has one LRW datagram）
 - **Minimum PDO cyclic time < 40 us (depends on master and slave hardware)**
 - **DC jitter < 3us (depends on master and slave hardware)**
 - **Support multi cyclic time(every slave can use different proportional cyclic time)**
+- **Support backup redundancy(TODO)**
 - Support ethercat cmd with shell, ref to IgH
 
 The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
@@ -47,6 +48,7 @@ The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
 - **Slave**
 	- Must support DC and system time
 	- Must support sdo complete access
+	- Must support LRW
 	- SII must have sync manager information
 
 ## Shell cmd

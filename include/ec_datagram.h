@@ -55,8 +55,6 @@ typedef struct {
     uint8_t index;                    /**< Index (set by master). */
     uint16_t working_counter;         /**< Working counter. */
     ec_datagram_state_t state;        /**< State. */
-    uint32_t lrw_read_offset;         /**< Read Offset in LRW datagram. */
-    uint32_t lrw_read_size;           /**< Read Size in LRW datagram. */
     uint64_t jiffies_sent;            /**< Jiffies [ns], when the datagram was sent. */
     uint64_t jiffies_received;        /**< Jiffies [ns], when the datagram was received. */
     char name[EC_DATAGRAM_NAME_SIZE]; /**< Description of the datagram. */

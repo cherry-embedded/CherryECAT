@@ -574,7 +574,7 @@ int ethercat(int argc, const char **argv)
                        global_cmd_master->index,
                        global_cmd_master->actual_working_counter,
                        global_cmd_master->expected_working_counter);
-
+#ifdef CONFIG_EC_PDO_MULTI_DOMAIN
             for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
                 EC_LOG_RAW("%-3u  %u:%04x         (actual/expect): %u/%u\n",
                            global_cmd_master->index,
@@ -583,6 +583,7 @@ int ethercat(int argc, const char **argv)
                            global_cmd_master->slaves[i].actual_working_counter,
                            global_cmd_master->slaves[i].expected_working_counter);
             }
+#endif
             return 0;
         } else {
         }
