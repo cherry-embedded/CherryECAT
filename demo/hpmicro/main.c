@@ -108,8 +108,10 @@ static void task_start(void *param)
 
 CSH_CMD_EXPORT(ethercat, );
 
+// weak api used in ec_cmd.c
 unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
 
+// weak api used in ec_cmd.c
 void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
 {
 }

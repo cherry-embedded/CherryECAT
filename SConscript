@@ -23,6 +23,7 @@ src += Glob('src/ec_timestamp.c')
 src += Glob('src/ec_slave_table.c')
 src += Glob('src/phy/chry_phy.c')
 src += Glob('osal/ec_osal_rtthread.c')
+src += Glob('demo/rtthread/ec_main.c')
 
 if GetDepend(['PKG_CHERRYECAT_NETDEV_HPMICRO']):
     src += Glob('port/netdev_hpmicro.c')

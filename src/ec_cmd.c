@@ -905,10 +905,4 @@ int ethercat(int argc, const char **argv)
     ec_master_cmd_show_help();
     return -1;
 }
-
-#ifdef FINSH_USING_MSH
-#include <finsh.h>
-MSH_CMD_EXPORT(ethercat, cherryecat command line tool);
-#endif
-
 #endif
