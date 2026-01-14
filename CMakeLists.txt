@@ -31,6 +31,10 @@ if(CONFIG_CHERRYECAT)
         endif()
     endif()
 
+    if(CHERRYECAT_NETDEV_STM32H7)
+        list(APPEND cherryec_srcs port/netdev_stm32h7.c)
+    endif()
+
     if(HPM_SDK_BASE)
         list(APPEND cherryec_srcs port/netdev_hpmicro.c)
         sdk_inc(${cherryec_incs})

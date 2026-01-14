@@ -31,6 +31,9 @@ if GetDepend(['PKG_CHERRYECAT_NETDEV_HPMICRO']):
 if GetDepend(['PKG_CHERRYECAT_NETDEV_RENESAS']):
     src += Glob('port/netdev_renesas.c')
 
+if GetDepend(['PKG_CHERRYECAT_NETDEV_STM32H7']):
+    src += Glob('port/netdev_stm32h7.c')
+
 group = DefineGroup('CherryECAT', src, depend = ['PKG_USING_CHERRYECAT'], LIBS = LIBS, LIBPATH=LIBPATH, CPPPATH = path, CPPDEFINES = CPPDEFINES)
 
 Return('group')

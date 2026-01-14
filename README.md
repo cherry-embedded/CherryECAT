@@ -109,6 +109,8 @@ Generating C code...
 
 - HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
 - RT-Thread RZN2L-EtherKit/RA8P1 Titan/RuiQing Pai
+- STM32H7
+
 
 ## Contact
 
