@@ -27,6 +27,11 @@ src += Glob('demo/rtthread/ec_main.c')
 
 if GetDepend(['PKG_CHERRYECAT_NETDEV_HPMICRO']):
     src += Glob('port/netdev_hpmicro.c')
+    if GetDepend(['PKG_CHERRYECAT_HPMICRO_RGMII']):
+        CPPDEFINES += ['RGMII']
+
+    if GetDepend(['PKG_CHERRYECAT_HPMICRO_RMII']):
+        CPPDEFINES += ['RMII']
 
 if GetDepend(['PKG_CHERRYECAT_NETDEV_RENESAS']):
     src += Glob('port/netdev_renesas.c')
