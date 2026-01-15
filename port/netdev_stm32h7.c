@@ -63,12 +63,12 @@ static uint8_t *ec_master_enet_buffer_alloc(void)
     }
     return NULL;
 }
-
+ 
 static void ec_master_enet_buffer_free(uint8_t *buffer)
 {
-    uint8_t devno = buffer - &rx_buffer[0][0];
-    devno /= ETH_RX_BUFFER_SIZE;
+    uint8_t devno;
 
+    devno = (buffer - &rx_buffer[0][0]) / ETH_RX_BUFFER_SIZE;
     g_devinuse &= ~(1U << devno);
 }
 
@@ -110,6 +110,7 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
             break;
 
         default:
+            EC_ASSERT_MSG(0, "Invalid CONFIG_EC_PHY_RESET_PORT\n");
             break;
     }
 
