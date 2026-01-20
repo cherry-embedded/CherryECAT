@@ -27,10 +27,15 @@ ETH_TxPacketConfig TxConfig;
 
 // clang-format off
 #if defined ( __ICCARM__ ) /*!< IAR Compiler */
-#pragma location=0x30000000
+#pragma section = ".RxDescripSection"
 ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
-#pragma location=0x30000080
+#pragma section = ".TxDescripSection"
 ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
+
+#pragma section = ".TRx_PoolSection"
+__attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_DESC_CNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
+#pragma section = ".TRx_PoolSection"
+__attribute__((aligned(32))) uint8_t tx_buffer[ETH_TX_DESC_CNT][ETH_TX_BUFFER_SIZE]; /* Ethernet Transmit Buffer */
 
 #elif defined ( __CC_ARM )  /* MDK ARM Compiler */
 __attribute__((section(".RxDescripSection"))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
@@ -63,7 +68,7 @@ static uint8_t *ec_master_enet_buffer_alloc(void)
     }
     return NULL;
 }
- 
+
 static void ec_master_enet_buffer_free(uint8_t *buffer)
 {
     uint8_t devno;
