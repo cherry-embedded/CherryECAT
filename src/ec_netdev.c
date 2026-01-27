@@ -5,7 +5,7 @@
  */
 #include "ec_master.h"
 
-extern void ec_master_receive_datagrams(ec_master_t *master,
+extern void ec_master_receive(ec_master_t *master,
                                         uint8_t netdev_index,
                                         const uint8_t *frame_data,
                                         size_t size);
@@ -144,5 +144,5 @@ EC_FAST_CODE_SECTION void ec_netdev_receive(ec_netdev_t *netdev, uint8_t *frame,
     netdev->stats.rx_count++;
     netdev->stats.rx_bytes += size;
 
-    ec_master_receive_datagrams(netdev->master, netdev->index, ec_data, ec_size);
+    ec_master_receive(netdev->master, netdev->index, ec_data, ec_size);
 }

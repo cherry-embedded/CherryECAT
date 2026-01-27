@@ -284,6 +284,50 @@ EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
     }
 }
 
+EC_FAST_CODE_SECTION void ec_master_receive(ec_master_t *master,
+                                            uint8_t netdev_idx,
+                                            const uint8_t *frame_data,
+                                            size_t size)
+{
+    ec_slave_t *slave;
+
+    ec_master_receive_datagrams(master, netdev_idx, frame_data, size);
+
+    if (master->phase != EC_OPERATION) {
+        return;
+    }
+
+    master->actual_working_counter = 0;
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+        for (uint32_t i = 0; i < master->slave_count; i++) {
+            slave = &master->slaves[i];
+
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
+            }
+        }
+        master->actual_working_counter = master->pdo_datagram.working_counter;
+    }
+#else
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        slave = &master->slaves[i];
+
+        if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
+            }
+            master->actual_working_counter += slave->pdo_datagram.working_counter;
+            slave->actual_working_counter = slave->pdo_datagram.working_counter;
+        }
+    }
+#endif
+}
+
 static void ec_netdev_linkpoll_timer(void *argument)
 {
     ec_master_t *master = (ec_master_t *)argument;
@@ -715,7 +759,9 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
     uint64_t dc_ref_systime = 0;
+#ifdef CONFIG_EC_PDO_MULTI_DOMAIN
     ec_slave_t *slave;
+#endif
     int32_t offsettime = 0;
     uint64_t start_time;
     uint32_t period_ns;
@@ -744,36 +790,6 @@ EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
             ec_master_queue_datagram(master, &master->dc_ref_sync_datagram);
         }
     }
-
-    master->actual_working_counter = 0;
-#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
-    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
-        for (uint32_t i = 0; i < master->slave_count; i++) {
-            slave = &master->slaves[i];
-
-            if (slave->config && slave->config->pdo_callback) {
-                slave->config->pdo_callback(slave,
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
-            }
-        }
-        master->actual_working_counter = master->pdo_datagram.working_counter;
-    }
-#else
-    for (uint32_t i = 0; i < master->slave_count; i++) {
-        slave = &master->slaves[i];
-
-        if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
-            if (slave->config && slave->config->pdo_callback) {
-                slave->config->pdo_callback(slave,
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
-            }
-            master->actual_working_counter += slave->pdo_datagram.working_counter;
-            slave->actual_working_counter = slave->pdo_datagram.working_counter;
-        }
-    }
-#endif
 
     if (master->dc_ref_clock) {
         ec_datagram_zero(&master->dc_all_sync_datagram);
