@@ -863,10 +863,14 @@ int ethercat(int argc, const char **argv)
             global_cmd_master->total_period_ns = 0;
             global_cmd_master->period_count = 0;
 
-            global_cmd_master->min_exec_ns = 0xffffffff;
-            global_cmd_master->max_exec_ns = 0;
-            global_cmd_master->total_exec_ns = 0;
-            global_cmd_master->exec_count = 0;
+            global_cmd_master->min_send_exec_ns = 0xffffffff;
+            global_cmd_master->max_send_exec_ns = 0;
+            global_cmd_master->total_send_exec_ns = 0;
+            global_cmd_master->send_exec_count = 0;
+            global_cmd_master->min_recv_exec_ns = 0xffffffff;
+            global_cmd_master->max_recv_exec_ns = 0;
+            global_cmd_master->total_recv_exec_ns = 0;
+            global_cmd_master->recv_exec_count = 0;
 
             global_cmd_master->min_offset_ns = INT32_MAX;
             global_cmd_master->max_offset_ns = INT32_MIN;
@@ -881,16 +885,20 @@ int ethercat(int argc, const char **argv)
             return 0;
         } else if (strcmp(argv[2], "-v") == 0) {
             for (uint32_t i = 0; i < 10; i++) {
-                EC_LOG_RAW("Period min = %10u, max = %10u, avg = %10u ns\n",
+                EC_LOG_RAW("Period    min = %10u, max = %10u, avg = %10u ns\n",
                            global_cmd_master->min_period_ns,
                            global_cmd_master->max_period_ns,
                            (unsigned int)(global_cmd_master->total_period_ns / global_cmd_master->period_count));
-                EC_LOG_RAW("Exec   min = %10u, max = %10u, avg = %10u ns\n",
-                           global_cmd_master->min_exec_ns,
-                           global_cmd_master->max_exec_ns,
-                           (unsigned int)(global_cmd_master->total_exec_ns / global_cmd_master->exec_count));
+                EC_LOG_RAW("Send exec min = %10u, max = %10u, avg = %10u ns\n",
+                           global_cmd_master->min_send_exec_ns,
+                           global_cmd_master->max_send_exec_ns,
+                           (unsigned int)(global_cmd_master->total_send_exec_ns / global_cmd_master->send_exec_count));
+                EC_LOG_RAW("Recv exec min = %10u, max = %10u, avg = %10u ns\n",
+                           global_cmd_master->min_recv_exec_ns,
+                           global_cmd_master->max_recv_exec_ns,
+                           (unsigned int)(global_cmd_master->total_recv_exec_ns / global_cmd_master->recv_exec_count));
 
-                EC_LOG_RAW("Offset min = %10d, max = %10d ns\n",
+                EC_LOG_RAW("Offset    min = %10d, max = %10d ns\n",
                            global_cmd_master->min_offset_ns,
                            global_cmd_master->max_offset_ns);
 

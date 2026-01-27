@@ -83,10 +83,14 @@ typedef struct ec_master {
     uint32_t max_period_ns;
     uint64_t total_period_ns;
     uint64_t period_count;
-    uint32_t min_exec_ns;
-    uint32_t max_exec_ns;
-    uint64_t total_exec_ns;
-    uint64_t exec_count;
+    uint32_t min_send_exec_ns;
+    uint32_t max_send_exec_ns;
+    uint64_t total_send_exec_ns;
+    uint64_t send_exec_count;
+    uint32_t min_recv_exec_ns;
+    uint32_t max_recv_exec_ns;
+    uint64_t total_recv_exec_ns;
+    uint64_t recv_exec_count;
     int32_t min_offset_ns;
     int32_t max_offset_ns;
 

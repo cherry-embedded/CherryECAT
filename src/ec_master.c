@@ -290,6 +290,10 @@ EC_FAST_CODE_SECTION void ec_master_receive(ec_master_t *master,
                                             size_t size)
 {
     ec_slave_t *slave;
+    uint64_t start_time;
+    uint32_t exec_ns;
+
+    start_time = ec_timestamp_get_time_ns();
 
     ec_master_receive_datagrams(master, netdev_idx, frame_data, size);
 
@@ -326,6 +330,13 @@ EC_FAST_CODE_SECTION void ec_master_receive(ec_master_t *master,
         }
     }
 #endif
+    exec_ns = ec_timestamp_get_time_ns() - start_time;
+    if (master->perf_enable) {
+        master->min_recv_exec_ns = MIN(exec_ns, master->min_recv_exec_ns);
+        master->max_recv_exec_ns = MAX(exec_ns, master->max_recv_exec_ns);
+        master->total_recv_exec_ns += exec_ns;
+        master->recv_exec_count++;
+    }
 }
 
 static void ec_netdev_linkpoll_timer(void *argument)
@@ -816,10 +827,10 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
         master->total_period_ns += period_ns;
         master->period_count++;
 
-        master->min_exec_ns = MIN(exec_ns, master->min_exec_ns);
-        master->max_exec_ns = MAX(exec_ns, master->max_exec_ns);
-        master->total_exec_ns += exec_ns;
-        master->exec_count++;
+        master->min_send_exec_ns = MIN(exec_ns, master->min_send_exec_ns);
+        master->max_send_exec_ns = MAX(exec_ns, master->max_send_exec_ns);
+        master->total_send_exec_ns += exec_ns;
+        master->send_exec_count++;
 
         master->min_offset_ns = MIN(offsettime, master->min_offset_ns);
         master->max_offset_ns = MAX(offsettime, master->max_offset_ns);
