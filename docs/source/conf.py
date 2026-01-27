@@ -6,8 +6,8 @@ project = 'CherryECAT'
 copyright = '2025 ~ 2026, sakumisu'
 author = 'sakumisu'
 
-release = '1.1.1'
-version = '1.1.1'
+release = '2.0.0'
+version = '2.0.0'
 
 # -- General configuration
 
