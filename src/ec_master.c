@@ -7,9 +7,9 @@
 
 #define EC_DATAGRAM_TIMEOUT_NS (50 * 1000 * 1000ULL) // 50ms
 
-static void ec_master_period_process(void *arg);
+void ec_master_period_process(void *arg);
 
-EC_FAST_CODE_SECTION static void ec_master_queue_datagram(ec_master_t *master, ec_datagram_t *datagram)
+EC_FAST_CODE_SECTION void ec_master_queue_datagram(ec_master_t *master, ec_datagram_t *datagram)
 {
     ec_datagram_t *queued_datagram;
 
@@ -25,7 +25,7 @@ EC_FAST_CODE_SECTION static void ec_master_queue_datagram(ec_master_t *master, e
     datagram->state = EC_DATAGRAM_QUEUED;
 }
 
-EC_FAST_CODE_SECTION static void ec_master_unqueue_datagram(ec_master_t *master, ec_datagram_t *datagram)
+EC_FAST_CODE_SECTION void ec_master_unqueue_datagram(ec_master_t *master, ec_datagram_t *datagram)
 {
     ec_dlist_del_init(&datagram->queue);
 
@@ -35,7 +35,7 @@ EC_FAST_CODE_SECTION static void ec_master_unqueue_datagram(ec_master_t *master,
     }
 }
 
-EC_FAST_CODE_SECTION static void ec_master_send_datagrams(ec_master_t *master, uint8_t netdev_idx)
+EC_FAST_CODE_SECTION void ec_master_send_datagrams(ec_master_t *master, uint8_t netdev_idx)
 {
     ec_datagram_t *datagram, *next;
     size_t datagram_size;
@@ -235,7 +235,7 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
     }
 }
 
-EC_FAST_CODE_SECTION static void ec_master_send(ec_master_t *master)
+EC_FAST_CODE_SECTION void ec_master_send(ec_master_t *master)
 {
     ec_datagram_t *datagram, *n;
     uint8_t netdev_idx;
@@ -738,7 +738,7 @@ uint32_t ec_master_get_slave_domain_isize(ec_master_t *master, uint32_t slave_in
     return slave->idata_size;
 }
 
-EC_FAST_CODE_SECTION static void ec_master_dc_sync_with_pi(ec_master_t *master, uint64_t dc_ref_time, int32_t *offsettime)
+EC_FAST_CODE_SECTION void ec_master_dc_sync_with_pi(ec_master_t *master, uint64_t dc_ref_time, int32_t *offsettime)
 {
     int64_t delta;
 
@@ -755,7 +755,7 @@ EC_FAST_CODE_SECTION static void ec_master_dc_sync_with_pi(ec_master_t *master, 
     *offsettime = -(delta / 100) - (master->dc_sync_integral / 20); // Kp = 0.1f, Ki = 0.05f
 }
 
-EC_FAST_CODE_SECTION static void ec_master_period_process(void *arg)
+EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
     uint64_t dc_ref_systime = 0;
