@@ -482,6 +482,13 @@ static int ec_slave_config(ec_slave_t *slave)
     }
 
     if (slave->requested_state == EC_SLAVE_STATE_BOOT) {
+        if (!(slave->sii.mailbox_protocols & EC_MBXPROT_FOE)) {
+            EC_SLAVE_LOG_ERR("Slave %u does not support BOOT mailbox protocol\n", slave->index);
+            ret = -EC_ERR_NOSUPP;
+            step = 5;
+            goto errorout;
+        }
+
         ec_sm_info_t sm_info[2];
 
         sm_info[0].physical_start_address = slave->sii.boot_rx_mailbox_offset;
