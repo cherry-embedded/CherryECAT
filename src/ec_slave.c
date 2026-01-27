@@ -555,6 +555,12 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
+    // preop state done
+    if (slave->current_state == slave->requested_state) {
+        ret = 0;
+        goto errorout;
+    }
+
     if (slave->config && slave->sii.general.coe_details.enable_pdo_assign && coe_support) {
         uint32_t data;
 
@@ -663,36 +669,32 @@ static int ec_slave_config(ec_slave_t *slave)
         }
     }
 
-    // preop state done
-    if (slave->current_state == slave->requested_state) {
-        ret = 0;
-        goto errorout;
-    }
+    if (slave->config) {
+        // Config process data sm
+        ec_datagram_fpwr(datagram, slave->station_address,
+                         ESCREG_OF(ESCREG->SYNCM[pdo_sm_offset]), EC_SYNC_PAGE_SIZE * pdo_sm_count);
+        ec_datagram_zero(datagram);
+        for (uint8_t i = 0; i < pdo_sm_count; i++) {
+            ec_slave_sm_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_SYNC_PAGE_SIZE * i);
+        }
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
+        if (ret < 0) {
+            step = 21;
+            goto errorout;
+        }
 
-    // Config process data sm
-    ec_datagram_fpwr(datagram, slave->station_address,
-                     ESCREG_OF(ESCREG->SYNCM[pdo_sm_offset]), EC_SYNC_PAGE_SIZE * pdo_sm_count);
-    ec_datagram_zero(datagram);
-    for (uint8_t i = 0; i < pdo_sm_count; i++) {
-        ec_slave_sm_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_SYNC_PAGE_SIZE * i);
-    }
-    datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
-    if (ret < 0) {
-        step = 21;
-        goto errorout;
-    }
-
-    ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->FMMU[0]), EC_FMMU_PAGE_SIZE * pdo_sm_count);
-    ec_datagram_zero(datagram);
-    for (uint8_t i = 0; i < pdo_sm_count; i++) {
-        ec_slave_fmmu_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_FMMU_PAGE_SIZE * i);
-    }
-    datagram->netdev_idx = slave->netdev_idx;
-    ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
-    if (ret < 0) {
-        step = 22;
-        goto errorout;
+        ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->FMMU[0]), EC_FMMU_PAGE_SIZE * pdo_sm_count);
+        ec_datagram_zero(datagram);
+        for (uint8_t i = 0; i < pdo_sm_count; i++) {
+            ec_slave_fmmu_config(&slave->sm_info[pdo_sm_offset + i], datagram->data + EC_FMMU_PAGE_SIZE * i);
+        }
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
+        if (ret < 0) {
+            step = 22;
+            goto errorout;
+        }
     }
 
     if (slave->config && slave->config->dc_assign_activate) {

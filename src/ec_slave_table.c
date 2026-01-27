@@ -209,6 +209,7 @@ int ec_master_find_slave_sync_info(uint32_t vendor_id,
         case 0x0048504D: // HPMicro
             switch (product_code) {
                 case 0x00000001:
+                case 0x00000005:
                     *syncs = hpm_dio_syncs;
                     *sync_count = sizeof(hpm_dio_syncs) / sizeof(ec_sync_info_t);
                     return 0;
