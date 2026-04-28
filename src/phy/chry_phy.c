@@ -9,6 +9,7 @@
 #include "phy/chry_phy.h"
 
 #include "phy/chry_phy_dp83848.h"
+#include "phy/chry_phy_dp83825.h"
 #include "phy/chry_phy_dp83847.h"
 #include "phy/chry_phy_jl1111.h"
 #include "phy/chry_phy_ksz8081.h"
@@ -19,6 +20,7 @@
 
 const struct chry_phy_driver *g_phy_driver_table[] = {
     &dp83848_driver,
+    &dp83825_driver,
     &dp83847_driver,
     &jl1111_driver,
     &ksz8081_driver,
