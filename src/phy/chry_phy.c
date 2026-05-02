@@ -26,6 +26,7 @@ const struct chry_phy_driver *g_phy_driver_table[] = {
     &rtl8201_driver,
     &rtl8211_driver,
     &yt8522_driver,
+    &lan8742_driver,
 
 };
 
