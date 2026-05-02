@@ -17,6 +17,7 @@
 #include "phy/chry_phy_rtl8201.h"
 #include "phy/chry_phy_rtl8211.h"
 #include "phy/chry_phy_yt8522.h"
+#include "phy/chry_phy_lan8742.h"
 
 const struct chry_phy_driver *g_phy_driver_table[] = {
     &dp83848_driver,
@@ -28,6 +29,7 @@ const struct chry_phy_driver *g_phy_driver_table[] = {
     &rtl8201_driver,
     &rtl8211_driver,
     &yt8522_driver,
+    &lan8742_driver,
 
 };
 
