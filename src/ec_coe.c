@@ -49,12 +49,12 @@ static int ec_coe_download_expedited(ec_master_t *master,
                                      uint16_t index,
                                      uint8_t subindex,
                                      const void *buf,
-                                     uint32_t size,
+                                     uint8_t size,
                                      bool complete_access)
 {
     uint8_t *data;
     uint8_t mbox_proto;
-    uint32_t recv_size;
+    uint16_t recv_size;
     ec_coe_download_common_header_t *download_common;
     int ret;
 
@@ -117,12 +117,12 @@ static int ec_coe_download_common(ec_master_t *master,
                                   uint16_t index,
                                   uint8_t subindex,
                                   const void *buf,
-                                  uint32_t size,
+                                  uint16_t size,
                                   bool complete_access)
 {
     uint8_t *data;
     uint8_t mbox_proto;
-    uint32_t recv_size;
+    uint16_t recv_size;
     ec_coe_download_common_header_t *download_common;
     int ret;
 
@@ -189,8 +189,8 @@ static int ec_coe_download_segment(ec_master_t *master,
 {
     uint8_t *data;
     uint8_t mbox_proto;
-    uint32_t data_size, recv_size;
-    uint32_t seg_size;
+    uint16_t data_size, recv_size;
+    uint16_t seg_size;
     ec_coe_download_segment_header_t *download_seg;
     int ret;
 
@@ -332,7 +332,7 @@ int ec_coe_upload(ec_master_t *master,
     uint8_t *data;
     uint8_t *ptr;
     uint8_t mbox_proto;
-    uint32_t recv_size;
+    uint16_t recv_size;
     uint16_t rec_index;
     uint8_t rec_subindex;
     uint32_t data_size, total_size, offset;

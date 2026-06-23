@@ -21,6 +21,8 @@
 
 void lan8742_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config)
 {
+    (void)phydev;
+    (void)config;
     /* LAN8742A does not require special initialization beyond standard PHY reset and config
      * which is handled by chry_phy_init in ec_netdev.c */
 }
@@ -36,10 +38,10 @@ void lan8742_phy_get_status(struct chry_phy_device *phydev, struct chry_phy_stat
     if (status->link) {
         /* Read PHY Special Control/Status Register for speed and duplex info */
         regval = phydev->mdio_read(phydev, phydev->phy_addr, LAN8742_PHYSCSR);
-        
+
         /* Extract speed and duplex bits [4:2] */
         uint16_t speed_duplex = regval & LAN8742_PHYSCSR_HCDSPEEDMASK;
-        
+
         switch (speed_duplex) {
             case LAN8742_PHYSCSR_10BT_HD:
                 status->speed = 10;

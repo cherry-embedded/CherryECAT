@@ -85,12 +85,12 @@ int ec_mailbox_receive(ec_master_t *master,
                        uint16_t slave_index,
                        ec_datagram_t *datagram,
                        uint8_t *type,
-                       uint32_t *size,
+                       uint16_t *size,
                        uint64_t timeout_ns)
 {
     ec_slave_t *slave;
     uint16_t code;
-    uint32_t tmp_size;
+    uint16_t tmp_size;
     uint8_t tmp_type;
     int ret;
 

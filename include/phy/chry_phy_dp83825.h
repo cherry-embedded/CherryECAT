@@ -25,6 +25,8 @@
 
 void dp83825_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config)
 {
+    (void)phydev;
+    (void)config;
 //    uint16_t data = 0;
 //
 //    data |= config->auto_negotiation ? 0x1000U : 0;

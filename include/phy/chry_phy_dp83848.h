@@ -24,6 +24,8 @@
 
 void dp83848_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config)
 {
+    (void)phydev;
+    (void)config;
 }
 
 void dp83848_phy_get_status(struct chry_phy_device *phydev, struct chry_phy_status *status)

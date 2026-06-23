@@ -27,6 +27,8 @@ EC_FAST_CODE_SECTION void ec_master_queue_datagram(ec_master_t *master, ec_datag
 
 EC_FAST_CODE_SECTION void ec_master_unqueue_datagram(ec_master_t *master, ec_datagram_t *datagram)
 {
+    (void)master;
+
     ec_dlist_del_init(&datagram->queue);
 
     if (datagram->waiter) {
@@ -44,6 +46,8 @@ EC_FAST_CODE_SECTION void ec_master_send_datagrams(ec_master_t *master, uint8_t 
     uint64_t jiffies_sent;
     unsigned int datagram_count, more_datagrams_waiting;
     ec_dlist_t sent_datagrams;
+
+    (void)datagram_count;
 
     datagram_count = 0;
     ec_dlist_init(&sent_datagrams);
@@ -149,6 +153,8 @@ EC_FAST_CODE_SECTION void ec_master_receive_datagrams(ec_master_t *master,
     uint64_t jiffies_received;
     uint32_t datagram_count;
     ec_datagram_t *datagram;
+
+    (void)datagram_count;
 
     if (size < EC_FRAME_HEADER_SIZE) {
         EC_LOG_ERR("Corrupted frame received on %s (size %u < %u byte)\n",
@@ -450,6 +456,7 @@ int ec_master_init(ec_master_t *master, uint8_t master_index)
 
 void ec_master_deinit(ec_master_t *master)
 {
+    (void)master;
 }
 
 int ec_master_start(ec_master_t *master)

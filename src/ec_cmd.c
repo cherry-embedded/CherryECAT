@@ -29,6 +29,9 @@ __WEAK unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please 
 
 __WEAK void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
 {
+    (void)slave;
+    (void)output;
+    (void)input;
 }
 
 static void ec_master_cmd_show_help(void)

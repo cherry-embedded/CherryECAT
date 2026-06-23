@@ -38,8 +38,6 @@ static void ec_slave_init(ec_slave_t *slave,
 
 static void ec_slave_clear(ec_slave_t *slave)
 {
-    int i;
-
     if (slave->sii_image) {
         ec_osal_free(slave->sii_image);
         slave->sii_image = NULL;
@@ -47,7 +45,7 @@ static void ec_slave_clear(ec_slave_t *slave)
     }
 
     if (slave->sii.strings) {
-        for (i = 0; i < slave->sii.string_count; i++)
+        for (uint32_t i = 0; i < slave->sii.string_count; i++)
             ec_osal_free(slave->sii.strings[i]);
         ec_osal_free(slave->sii.strings);
         slave->sii.strings = NULL;
@@ -61,9 +59,11 @@ static void ec_slave_clear(ec_slave_t *slave)
 
 static int ec_slave_fetch_sii_strings(ec_slave_t *slave, const uint8_t *data, size_t data_size)
 {
-    int i, ret;
+    int ret;
     uint32_t size;
     uint32_t offset;
+
+    (void)data_size;
 
     slave->sii.string_count = data[0];
 
@@ -76,7 +76,7 @@ static int ec_slave_fetch_sii_strings(ec_slave_t *slave, const uint8_t *data, si
         }
 
         offset = 1;
-        for (i = 0; i < slave->sii.string_count; i++) {
+        for (uint32_t i = 0; i < slave->sii.string_count; i++) {
             size = data[offset];
 
             slave->sii.strings[i] = ec_osal_malloc(sizeof(char) * size + 1);
@@ -95,7 +95,7 @@ static int ec_slave_fetch_sii_strings(ec_slave_t *slave, const uint8_t *data, si
     return 0;
 
 errorout2:
-    for (i = 0; i < slave->sii.string_count; i++) {
+    for (uint32_t i = 0; i < slave->sii.string_count; i++) {
         ec_osal_free(slave->sii.strings[i]);
     }
     ec_osal_free(slave->sii.strings);
@@ -1052,7 +1052,7 @@ void ec_slaves_scanning(ec_master_t *master)
         memset(master->slaves, 0, sizeof(ec_slave_t) * count);
 
         slave_index = 0;
-        for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             autoinc_address = 0;
             for (uint32_t j = 0; j < master->slaves_working_counter[netdev_idx]; j++) {
                 slave = master->slaves + slave_index;
@@ -1064,7 +1064,7 @@ void ec_slaves_scanning(ec_master_t *master)
             }
         }
 
-        for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             if (master->slaves_working_counter[netdev_idx] == 0) {
                 continue;
             }
@@ -1091,7 +1091,7 @@ void ec_slaves_scanning(ec_master_t *master)
             ref_time[netdev_idx] = datagram->jiffies_sent;
         }
 
-        for (uint32_t slave_index = 0; slave_index < master->slave_count; slave_index++) {
+        for (slave_index = 0; slave_index < master->slave_count; slave_index++) {
             slave = master->slaves + slave_index;
 
             EC_SLAVE_LOG_INFO("Scanning slave %u on %s\n", slave->index, master->netdev[slave->netdev_idx]->name);

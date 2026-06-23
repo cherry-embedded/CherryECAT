@@ -22,6 +22,9 @@
 
 void rtl8201_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config)
 {
+    (void)phydev;
+    (void)config;
+
     uint16_t regval;
 
     phydev->mdio_write(phydev, phydev->phy_addr, RTL8201_PAGESEL, 7);

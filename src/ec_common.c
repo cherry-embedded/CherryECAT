@@ -266,7 +266,7 @@ const ec_code_msg_t al_status_messages[] = {
     { 0x0050, "EEPROM No Access" },
     { 0x0051, "EEPROM Error" },
     { 0x0060, "Slave Restarted Locally" },
-    { 0xffff }
+    { 0xffff, "" }
 };
 
 const char *ec_alstatus_string(uint16_t errorcode)
@@ -288,7 +288,7 @@ const ec_code_msg_t mbox_error_messages[] = {
     { 0x00000006, "MBXERR_SIZETOOSHORT" },
     { 0x00000007, "MBXERR_NOMOREMEMORY" },
     { 0x00000008, "MBXERR_INVALIDSIZE" },
-    { 0xffffffff }
+    { 0xffffffff, "" }
 };
 
 const char *ec_mbox_error_string(uint16_t errorcode)
@@ -335,7 +335,7 @@ const ec_code_msg_t sdo_abort_messages[] = {
                   " because of the present device state" },
     { 0x08000023, "Object dictionary dynamic generation fails or no object"
                   " dictionary is present" },
-    { 0xffffffff }
+    { 0xffffffff, "" }
 };
 
 const char *ec_sdo_abort_string(uint32_t errorcode)
@@ -366,7 +366,7 @@ const ec_code_msg_t foe_errcode_messages[] = {
     { EC_FOE_ERRCODE_NO_FILE, "Do not use (identical with 0x8001)" },
     { EC_FOE_ERRCODE_NO_FILE_HEADER, "Missing file header of error in file header" },
     { EC_FOE_ERRCODE_FLASH_ERROR, "Flash cannot be accessed" },
-    { 0xffffffff }
+    { 0xffffffff, "" }
 
 };
 
@@ -388,7 +388,7 @@ const ec_code_msg_t eoe_errcode_messages[] = {
     { EC_EOE_RESULT_NO_DHCP_SUPPORT, "No DHCP support" },
     { EC_EOE_RESULT_NO_MACFILTERMASK_SUPPORT, "No MAC filter/mask support" },
 
-    { 0xffffffff }
+    { 0xffffffff, "" }
 };
 
 const char *ec_eoe_errorcode_string(uint16_t errorcode)

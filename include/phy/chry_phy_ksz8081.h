@@ -12,6 +12,9 @@
 
 void ksz8081_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config)
 {
+    (void)phydev;
+    (void)config;
+
     uint16_t regval;
 
     regval = phydev->mdio_read(phydev, phydev->phy_addr, KSZ8081_PHY_CONTROL2);
