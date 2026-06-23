@@ -8,15 +8,15 @@
 #include "ec_master.h"
 
 ec_netdev_t g_netdev;
-#if !defined(SOC_SERIES_R7KA8P1) && !defined(SOC_SERIES_R9A07G0)
-#error "Ethercat master only supports for R7KA8P1 and RZN2L"
+#if !defined(BSP_MCU_GROUP_RA8P1) && !defined(BSP_MCU_GROUP_RA8T1) && !defined(BSP_MCU_GROUP_RA8T2) && !defined(SOC_SERIES_R9A07G0)
+#error "Ethercat master only supports for RA8P1/RA8T1/RA8T2 and RZN2L"
 #endif
 
 #if !defined(CONFIG_EC_PHY_CUSTOM)
 #error "CONFIG_EC_PHY_CUSTOM must be defined for Renesas MCUs"
 #endif
 
-#if defined(SOC_SERIES_R7KA8P1)
+#if defined(BSP_MCU_GROUP_RA8P1) || defined(BSP_MCU_GROUP_RA8T1) || defined(BSP_MCU_GROUP_RA8T2)
 #define ETHER_BUFFER_PLACE_IN_SECTION BSP_PLACE_IN_SECTION(".ram_nocache")
 
 #define ETHER_EVENT_INTERRUPT ETHER_EVENT_RX_COMPLETE
@@ -41,16 +41,16 @@ void rmac_phy_target_rtl8211_initialize(rmac_phy_instance_ctrl_t *phydev)
 
     /* set led1(green) Link 10/100/1000M, and set led2(yellow) Link 10/100/1000M+Active */
     R_RMAC_PHY_Read(phydev, RTL_8211F_LCR_ADDR, &val1);
-    val1 |= (1 << 5);
-    val1 |= (1 << 8);
-    val1 &= (~(1 << 9));
-    val1 |= (1 << 10);
-    val1 |= (1 << 11);
+    val1 |= (1 << 5UL);
+    val1 |= (1 << 8UL);
+    val1 &= (~(1 << 9UL));
+    val1 |= (1 << 10UL);
+    val1 |= (1 << 11UL);
     R_RMAC_PHY_Write(phydev, RTL_8211F_LCR_ADDR, val1);
 
     /* set led1(green) EEE LED function disabled so it can keep on when linked */
     R_RMAC_PHY_Read(phydev, RTL_8211F_EEELCR_ADDR, &val2);
-    val2 &= (~(1 << 2));
+    val2 &= (~(1 << 2UL));
     R_RMAC_PHY_Write(phydev, RTL_8211F_EEELCR_ADDR, val2);
 
     /* switch back to page0 */
@@ -66,20 +66,6 @@ bool rmac_phy_target_rtl8211_is_support_link_partner_ability(rmac_phy_instance_c
     /* This PHY-LSI supports half and full duplex mode. */
     return true;
 }
-
-/* Multi-PHY support structures */
-typedef struct {
-    rmac_phy_instance_ctrl_t *p_ctrl;
-    uint8_t port_bit;
-    const char *name;
-} phy_port_info_t;
-
-static const phy_port_info_t phy_ports[] = {
-    { &g_rmac_phy0_ctrl, 0x01, "PHY0" },
-    { &g_rmac_phy1_ctrl, 0x02, "PHY1" }
-};
-
-#define PHY_PORTS_COUNT (sizeof(phy_ports) / sizeof(phy_ports[0]))
 
 #elif defined(SOC_SERIES_R9A07G0)
 
@@ -112,16 +98,16 @@ static int phy_rtl8211f_led_fixup(ether_phy_instance_ctrl_t *phydev)
 
     /* set led1(green) Link 10/100/1000M, and set led2(yellow) Link 10/100/1000M+Active */
     R_ETHER_PHY_Read(phydev, RTL_8211F_LCR_ADDR, &val1);
-    val1 |= (1 << 5);
-    val1 |= (1 << 8);
-    val1 &= (~(1 << 9));
-    val1 |= (1 << 10);
-    val1 |= (1 << 11);
+    val1 |= (1 << 5UL);
+    val1 |= (1 << 8UL);
+    val1 &= (~(1 << 9UL));
+    val1 |= (1 << 10UL);
+    val1 |= (1 << 11UL);
     R_ETHER_PHY_Write(phydev, RTL_8211F_LCR_ADDR, val1);
 
     /* set led1(green) EEE LED function disabled so it can keep on when linked */
     R_ETHER_PHY_Read(phydev, RTL_8211F_EEELCR_ADDR, &val2);
-    val2 &= (~(1 << 2));
+    val2 &= (~(1 << 2UL));
     R_ETHER_PHY_Write(phydev, RTL_8211F_EEELCR_ADDR, val2);
 
     /* switch back to page0 */
@@ -136,24 +122,17 @@ void ether_phy_targets_initialize_rtl8211_rgmii(ether_phy_instance_ctrl_t *p_ins
     phy_rtl8211f_led_fixup(p_instance_ctrl);
 }
 
-#define PHY_PORTS_COUNT (3) ///< Count of port
-
 #endif
 
 __attribute__((__aligned__(32))) uint8_t tx_buffer[CONFIG_EC_MAX_ENET_TXBUF_COUNT][1536] ETHER_BUFFER_PLACE_IN_SECTION;
 
 extern uint32_t SystemCoreClock;
 
-static uint8_t g_link_change = 0; ///< Link change (bit0:port0, bit1:port1, bit2:port2)
-static uint8_t g_link_status = 0; ///< Link status (bit0:port0, bit1:port1, bit2:port2)
-static uint8_t previous_link_status = 0;
-
 ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
 {
     fsp_err_t res;
 
     EC_ASSERT_MSG(g_ether0_cfg.zerocopy == ETHER_ZEROCOPY_ENABLE, "zerocopy must be enabled");
-    EC_ASSERT_MSG(g_ether0_cfg.multicast == ETHER_MULTICAST_DISABLE, "multicast must be disabled");
     EC_ASSERT_MSG(g_ether0_cfg.promiscuous == ETHER_PROMISCUOUS_ENABLE, "promiscuous must be enabled");
     EC_ASSERT_MSG(g_ether0_cfg.num_tx_descriptors == CONFIG_EC_MAX_ENET_TXBUF_COUNT, "num_tx_descriptors must be the same as \
         CONFIG_EC_MAX_ENET_TXBUF_COUNT");
@@ -184,112 +163,10 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
     return &g_netdev;
 }
 
-#if defined(SOC_SERIES_R7KA8P1)
 void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
 {
-    fsp_err_t res;
-    uint8_t port;
-    uint8_t port_bit;
-    uint8_t status_change;
-    uint32_t phy_data;
-    uint8_t current_link_status = 0;
-    uint8_t i;
-
-    res = R_ETHER_LinkProcess(&g_ether0_ctrl);
-
-    /* Check link status for all PHY ports */
-    for (i = 0; i < PHY_PORTS_COUNT; i++) {
-        res = R_RMAC_PHY_Read(phy_ports[i].p_ctrl, 0x1, &phy_data);
-        if (res == FSP_SUCCESS) {
-            if (phy_data & 0x04) /* PHY Basic Status Register Link Status bit */
-            {
-                current_link_status |= phy_ports[i].port_bit; /* Port link up */
-            }
-
-            status_change = previous_link_status ^ current_link_status;
-            if (status_change & phy_ports[i].port_bit) {
-                g_link_change |= phy_ports[i].port_bit;
-            }
-        } else {
-            EC_LOG_ERR("%s PHY_Read failed!, res = %d", phy_ports[i].name, res);
-        }
-    }
-
-    /* Update global link status */
-    g_link_status = current_link_status;
-
-    /* Process link changes for all ports */
-    for (port = 0; port < PHY_PORTS_COUNT; port++) {
-        port_bit = phy_ports[port].port_bit;
-
-        if (g_link_change & port_bit) {
-            /* Link status changed */
-            g_link_change &= (uint8_t)(~port_bit); /* change bit clear */
-
-            if (g_link_status & port_bit) {
-                /* Changed to Link-up */
-                netdev->link_state = true;
-            } else {
-                /* Changed to Link-down */
-                netdev->link_state = false;
-            }
-        }
-    }
-
-    previous_link_status = g_link_status;
+    R_ETHER_LinkProcess(&g_ether0_ctrl);
 }
-#elif defined(SOC_SERIES_R9A07G0)
-void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
-{
-    fsp_err_t res;
-    gmac_link_status_t port_status;
-    uint8_t port = 0;
-    uint8_t port_bit = 0;
-
-    res = R_GMAC_LinkProcess(&g_ether0_ctrl);
-
-    if (0 == g_ether0.p_cfg->p_callback) {
-        for (port = 0; port < PHY_PORTS_COUNT; port++) {
-            res = R_GMAC_GetLinkStatus(&g_ether0_ctrl, port, &port_status);
-            if (FSP_SUCCESS != res) {
-                /* An error has occurred */
-                EC_LOG_ERR("R_GMAC_GetLinkStatus failed!, res = %d", res);
-                break;
-            }
-
-            if (GMAC_LINK_STATUS_DOWN != port_status) {
-                /* Set link up */
-                g_link_status |= (uint8_t)(1U << port);
-            }
-        }
-        if (FSP_SUCCESS == res) {
-            /* Set changed link status */
-            g_link_change = previous_link_status ^ g_link_status;
-        }
-    }
-
-    previous_link_status = g_link_status;
-
-    if (FSP_SUCCESS == res) {
-        for (port = 0; port < PHY_PORTS_COUNT; port++) {
-            port_bit = (uint8_t)(1U << port);
-
-            if (g_link_change & port_bit) {
-                /* Link status changed */
-                g_link_change &= (uint8_t)(~port_bit); // change bit clear
-
-                if (g_link_status & port_bit) {
-                    /* Changed to Link-up */
-                    netdev->link_state = true;
-                } else {
-                    /* Changed to Link-down */
-                    netdev->link_state = false;
-                }
-            }
-        }
-    }
-}
-#endif
 
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 {
@@ -333,15 +210,13 @@ static ec_htimer_cb g_ec_htimer_cb = NULL;
 static void *g_ec_htimer_arg = NULL;
 static uint32_t g_timer_reload_us_div = 0;
 
-void timer0_esc_callback(timer_callback_args_t *p_args)
+void cherryecat_htimer_callback(timer_callback_args_t *p_args)
 {
-    rt_interrupt_enter();
     if (TIMER_EVENT_CYCLE_END == p_args->event) {
         if (g_ec_htimer_cb) {
             g_ec_htimer_cb(g_ec_htimer_arg);
         }
     }
-    rt_interrupt_leave();
 }
 
 void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
@@ -375,19 +250,15 @@ EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
     R_GPT_PeriodSet(&g_timer0_ctrl, us * g_timer_reload_us_div);
 }
 
-void user_ether0_callback(ether_callback_args_t *p_args)
+void cherryecat_ether_callback(ether_callback_args_t *p_args)
 {
-    rt_interrupt_enter();
-
     switch (p_args->event) {
-        case ETHER_EVENT_LINK_ON:                          ///< Link up detection event/
-            g_link_status |= (uint8_t)p_args->status_ecsr; ///< status up
-            g_link_change |= (uint8_t)p_args->status_ecsr; ///< change bit set
+        case ETHER_EVENT_LINK_ON: ///< Link up detection event/
+            g_netdev.link_state = true;
             break;
 
-        case ETHER_EVENT_LINK_OFF:                            ///< Link down detection event
-            g_link_status &= (uint8_t)(~p_args->status_ecsr); ///< status down
-            g_link_change |= (uint8_t)p_args->status_ecsr;    ///< change bit set
+        case ETHER_EVENT_LINK_OFF: ///< Link down detection event
+            g_netdev.link_state = false;
             break;
 
         case ETHER_EVENT_WAKEON_LAN: ///< Magic packet detection event
@@ -403,8 +274,6 @@ void user_ether0_callback(ether_callback_args_t *p_args)
         default:
             break;
     }
-
-    rt_interrupt_leave();
 }
 
 #ifndef CONFIG_EC_TIMESTAMP_CUSTOM
@@ -419,11 +288,9 @@ volatile uint64_t mtu3_overflow_count = 0;
 
 void g_mtu3_callback(timer_callback_args_t *p_args)
 {
-    rt_interrupt_enter();
     if (TIMER_EVENT_CYCLE_END == p_args->event) {
         mtu3_overflow_count++;
     }
-    rt_interrupt_leave();
 }
 
 uint64_t gpt_get_count(void)
