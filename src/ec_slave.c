@@ -721,6 +721,17 @@ static int ec_slave_config(ec_slave_t *slave)
             goto errorout;
         }
 
+      /* 7. Master calculates system time offsets for all DC slaves and writes them to the system time offset registers.
+       *      The offset of each slave is receive time ECAT processing unit from reference clock minus receive time ECAT processing unit from each DC slave.
+       * 8. Master resets all slaves’ time control loop filters by writing to the speed counter start register (0x0930:0x0931).
+       * 9. For static drift compensation, the master sends many separate ARMW or FRMW drift compensation frames (e.g., 15,000 frames) to distribute the system time of the reference clock to all DC slaves. */
+
+      /* Speed counter start (0x0930:0x931)
+       * Bandwidth for adjustment of local copy of system time (larger values → smaller bandwidth and smoother adjustment) 
+       * A write access resets system time difference (0x092C:0x092F) and speed counter diff (0x0932:0x0933). 
+       * Valid values: 0x0080 to 0x3FFF */
+        ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SPD_CNT_START), 2);
+      
         start_time = 0;
     read_check:
         ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->SYS_TIME_DIFF), 4);
