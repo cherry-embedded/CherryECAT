@@ -311,7 +311,7 @@ void ec_osal_init(uint8_t *mem, uint32_t mem_size)
         }
     }
 
-    tx_byte_allocate(&ec_byte_pool, (VOID **)&ec_osal_mq, EC_ALIGN_UP(sizeof(TX_QUEUE), 4) + sizeof(uintptr_t) * max_msgs, TX_NO_WAIT);
+    tx_byte_allocate(&ec_byte_pool, (VOID **)&ec_osal_mq, EC_ALIGN_UP(sizeof(TX_QUEUE), 4) + sizeof(uintptr_t) * 32, TX_NO_WAIT);
     if (ec_osal_mq == TX_NULL) {
         EC_LOG_ERR("Create ec_osal_mq failed\r\n");
         while (1) {
