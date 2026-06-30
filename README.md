@@ -15,6 +15,7 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 - ~ 4K ram, ~40K flash(24K + 16K shell cmd, including log)
 - Asynchronous queue-based transfer (one transfer can carry multiple datagrams)
 - Zero-copy technology: directly use enet tx/rx buffer to fill and parse ethercat data
+- PHY driver internal, scan and configure PHY automatically
 - Support hot-plugging
 	- Automatic scanning bus
 	- Automatic updating slave information when the topology changes
