@@ -746,9 +746,11 @@ static int ec_slave_config(ec_slave_t *slave)
         }
 
         uint64_t dc_start_time;
-        uint32_t remainder = EC_DC_START_OFFSET % (slave->config->dc_sync[0].cycle_time + slave->config->dc_sync[1].cycle_time);
+        uint32_t remainder;
 
-        dc_start_time = ec_timestamp_get_time_ns() + EC_DC_START_OFFSET +
+        dc_start_time = ec_timestamp_get_time_ns() + EC_DC_START_OFFSET;
+        remainder = (dc_start_time - slave->master->dc_start_time) % (slave->config->dc_sync[0].cycle_time + slave->config->dc_sync[1].cycle_time);
+        dc_start_time = dc_start_time +
                         slave->config->dc_sync[0].cycle_time + slave->config->dc_sync[1].cycle_time - remainder +
                         slave->config->dc_sync[0].shift_time;
         ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->START_TIME_CO), 8);

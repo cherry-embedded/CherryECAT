@@ -485,6 +485,7 @@ int ec_master_start(ec_master_t *master)
     master->nonperiod_suspend = true;
     master->interval = 0;
     master->dc_sync_integral = 0;
+    master->dc_start_time = 0;
 
     // wait for non-periodic thread to suspend
     while (master->nonperiod_suspend) {
@@ -792,6 +793,10 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
     }
 
     start_time = ec_timestamp_get_time_ns();
+
+    if(master->dc_start_time == 0) {
+        master->dc_start_time = start_time;
+    }
 
     if (master->dc_ref_clock) {
         if (master->dc_sync_with_dc_ref_enable) {

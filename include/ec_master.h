@@ -71,6 +71,7 @@ typedef struct ec_master {
     uint32_t cycle_time;             /**< Cycle time [ns]. */
     int32_t shift_time;              /**< Shift time [ns]. */
     int64_t dc_sync_integral;        /**< DC integral value. */
+    uint64_t dc_start_time;          /**< DC start time [ns]. */
 
     uint64_t interval;
 
