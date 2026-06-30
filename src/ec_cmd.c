@@ -785,7 +785,7 @@ int ethercat(int argc, const char **argv)
         EC_LOG_RAW("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
-        ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size);
+        ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size, NULL);
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
@@ -811,7 +811,7 @@ int ethercat(int argc, const char **argv)
         ec_datagram_init(&datagram, 1024);
 
         ec_osal_mutex_take(global_cmd_master->scan_lock);
-        ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size);
+        ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size, NULL);
         ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
