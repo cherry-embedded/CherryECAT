@@ -10,6 +10,12 @@
 #include "board.h"
 #include "ec_master.h"
 
+#if defined(HPM_ENET_RGMII) && HPM_ENET_RGMII
+#define RGMII 1
+#elif defined(HPM_ENET_RMII) && HPM_ENET_RMII
+#define RMII 1
+#endif
+
 #if !defined(RMII) && !defined(RGMII)
 #error "Please define RMII or RGMII in ec_config.h to choose the ENET interface type"
 #endif
@@ -102,7 +108,7 @@ hpm_stat_t enet_init(ENET_Type *ptr)
     desc.rx_buff_cfg.size = ENET_RX_BUFF_SIZE;
 
     /*Get a default control config for tx descriptor */
-    enet_get_default_tx_control_config(ENET, &enet_tx_control_config);
+    enet_get_default_tx_control_config(ptr, &enet_tx_control_config);
 
     /* Set the control config for tx descriptor */
     ec_memcpy(&desc.tx_control_config, &enet_tx_control_config, sizeof(enet_tx_control_config_t));
@@ -116,17 +122,17 @@ hpm_stat_t enet_init(ENET_Type *ptr)
     enet_config.valid_max_count = 1;
 
     /* Set DMA PBL */
-    enet_config.dma_pbl = board_get_enet_dma_pbl(ENET);
+    enet_config.dma_pbl = board_get_enet_dma_pbl(ptr);
 
     /* Set SARC */
     enet_config.sarc = enet_sarc_replace_mac0;
 
 #if defined(__ENABLE_ENET_RECEIVE_INTERRUPT) && __ENABLE_ENET_RECEIVE_INTERRUPT
     /* Enable Enet IRQ */
-    board_enable_enet_irq(ENET);
+    board_enable_enet_irq(ptr);
 
     /* Get the default interrupt config */
-    enet_get_default_interrupt_config(ENET, &int_config);
+    enet_get_default_interrupt_config(ptr, &int_config);
 #endif
 
     /* Initialize enet controller */
@@ -136,7 +142,7 @@ hpm_stat_t enet_init(ENET_Type *ptr)
 
 #if defined(__ENABLE_ENET_RECEIVE_INTERRUPT) && __ENABLE_ENET_RECEIVE_INTERRUPT
     /* Disable LPI interrupt */
-    enet_disable_lpi_interrupt(ENET);
+    enet_disable_lpi_interrupt(ptr);
 #endif
 
     return status_success;
@@ -144,6 +150,8 @@ hpm_stat_t enet_init(ENET_Type *ptr)
 
 ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
 {
+    (void)netdev_index;
+
     /* Initialize GPIOs */
     board_init_enet_pins(ENET);
 
@@ -183,18 +191,26 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
 
 void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
 {
+    (void)phydev;
     //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
+
     enet_write_phy(ENET, phy_addr, regnum, val);
 }
 
 uint16_t ec_mdio_low_level_read(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum)
 {
+    (void)phydev;
     //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
-    return enet_read_phy(ENET, phy_addr, regnum);
+
+    uint16_t val = 0;
+    enet_read_phy(ENET, phy_addr, regnum, &val);
+    return val;
 }
 
 void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *status)
 {
+    (void)netdev;
+
     enet_line_speed_t line_speed = enet_line_speed_10mbps;
 
     switch (status->speed) {
@@ -220,6 +236,8 @@ void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *st
 
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 {
+    (void)netdev;
+
     __IO enet_tx_desc_t *dma_tx_desc;
 
     dma_tx_desc = desc.tx_desc_list_cur;
@@ -231,6 +249,8 @@ EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 
 EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_t size)
 {
+    (void)netdev;
+
     __IO enet_tx_desc_t *dma_tx_desc;
 
     dma_tx_desc = desc.tx_desc_list_cur;
@@ -248,7 +268,7 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_input(ec_netdev_t *netdev)
 {
     uint32_t len;
     uint8_t *buffer;
-    enet_frame_t frame = { 0, 0, 0 };
+    enet_frame_t frame = { 0 };
     enet_rx_desc_t *dma_rx_desc;
     uint32_t i = 0;
     int ret = 0;
