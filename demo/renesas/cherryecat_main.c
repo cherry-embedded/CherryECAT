@@ -8,6 +8,7 @@
 #include "semphr.h"
 
 #include "ec_master.h"
+#include "csh.h"
 
 ec_master_t g_ec_master;
 
@@ -30,3 +31,5 @@ void cherryecat_thread_create(void)
 {
     xTaskCreate(cherryecat_main, "ecat_main", 1024U, NULL, 10, NULL);
 }
+
+CSH_CMD_EXPORT(ethercat, );
