@@ -435,6 +435,14 @@ static int ec_slave_config(ec_slave_t *slave)
 
     datagram = &slave->master->main_datagram;
 
+    if (slave->master->dc_sync_with_dc_ref_enable &&
+        slave == slave->master->dc_ref_clock) {
+        size_t flags = ec_osal_enter_critical_section();
+        slave->master->dc_sync0_valid = false;
+        slave->master->dc_sync_integral = 0;
+        ec_osal_leave_critical_section(flags);
+    }
+
     coe_support = slave->sii.mailbox_protocols & EC_MBXPROT_COE ? true : false;
     pdo_sm_count = coe_support ? (slave->sm_count - 2) : slave->sm_count;
     pdo_sm_offset = coe_support ? 2 : 0;
@@ -771,6 +779,13 @@ static int ec_slave_config(ec_slave_t *slave)
             step = 27;
             goto errorout;
         }
+
+        if (slave->master->dc_sync_with_dc_ref_enable && slave == slave->master->dc_ref_clock) {
+            size_t flags = ec_osal_enter_critical_section();
+            slave->master->dc_sync0_start_time = dc_start_time;
+            slave->master->dc_sync0_valid = true;
+            ec_osal_leave_critical_section(flags);
+        }
     }
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_SAFEOP);
@@ -793,6 +808,12 @@ static int ec_slave_config(ec_slave_t *slave)
 
 errorout:
     if (ret < 0) {
+        if (slave->master->dc_sync_with_dc_ref_enable &&
+            slave == slave->master->dc_ref_clock) {
+            size_t flags = ec_osal_enter_critical_section();
+            slave->master->dc_sync0_valid = false;
+            ec_osal_leave_critical_section(flags);
+        }
         EC_SLAVE_LOG_ERR("Configure slave %u failed at step %u, errorcode: %d\n", slave->index, step, ret);
         return ret;
     } else {

@@ -498,6 +498,8 @@ int ec_master_start(ec_master_t *master)
     master->interval = 0;
     master->dc_sync_integral = 0;
     master->dc_start_time = 0;
+    master->dc_sync0_start_time = 0;
+    master->dc_sync0_valid = false;
 
     // wait for non-periodic thread to suspend
     while (master->nonperiod_suspend) {
@@ -688,9 +690,14 @@ EC_FAST_CODE_SECTION void ec_master_dc_sync_with_pi(ec_master_t *master, uint64_
 {
     int64_t delta;
 
-    delta = (dc_ref_time - master->shift_time) % master->cycle_time;
-    if (delta > (master->cycle_time / 2)) {
-        delta = delta - master->cycle_time;
+    delta = (int64_t)(dc_ref_time % master->cycle_time) -
+            (int64_t)(master->dc_sync0_start_time % master->cycle_time) + master->shift_time;
+
+    delta %= master->cycle_time;
+    if (delta > (int64_t)(master->cycle_time / 2)) {
+        delta -= master->cycle_time;
+    } else if (delta < -(int64_t)(master->cycle_time / 2)) {
+        delta += master->cycle_time;
     }
     if (delta > 0) {
         master->dc_sync_integral++;

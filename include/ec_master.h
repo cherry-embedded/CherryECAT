@@ -67,11 +67,13 @@ typedef struct ec_master {
     ec_datagram_t dc_ref_sync_datagram; /**< Datagram used for synchronizing the reference clock to the master clock. */
     ec_datagram_t dc_all_sync_datagram; /**< Datagram used for synchronizing all slaves to the dc ref clock. */
 
-    bool dc_sync_with_dc_ref_enable; /**< true: Sync the reference clock by dc ref clock, false: by master */
+    bool dc_sync_with_dc_ref_enable; /**< true: Master follows DC reference clock; false: reference follows master. */
     uint32_t cycle_time;             /**< Cycle time [ns]. */
-    int32_t shift_time;              /**< Shift time [ns]. */
+    int32_t shift_time;              /**< Master send advance relative to SYNC0 [ns]; positive is earlier. */
     int64_t dc_sync_integral;        /**< DC integral value. */
-    uint64_t dc_start_time;          /**< DC start time [ns]. */
+    uint64_t dc_start_time;          /**< Application cycle origin for DC start alignment [ns]. */
+    uint64_t dc_sync0_start_time;    /**< SYNC0 start time of dc_ref_clock [ns]. */
+    bool dc_sync0_valid;             /**< Reference slave SYNC0 has been configured and activated. */
 
     uint64_t interval;
 
