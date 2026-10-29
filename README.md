@@ -19,6 +19,8 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 - Support hot-plugging
 	- Automatic scanning bus
 	- Automatic updating slave information when the topology changes
+	- Auto-recovery after link loss / reconnection
+	- New device will full rescan of all slaves and stay in PREOP, need restart required
 - Support automatic monitoring slave status
 - Support distributed clocks
 - Support CANopen over EtherCAT(COE)
@@ -29,12 +31,12 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 - Support multi master
 - Support PDO transfer with single domain or multi domain（single domain：all slaves share one LRW datagram，multi domain：each slave has one LRW datagram）
 - **Minimum PDO cyclic time < 40 us (depends on master and slave hardware)**
-- **DC jitter < 3us (depends on master and slave hardware)**
+- **DC jitter ~ 3us (depends on master and slave hardware)**
 - **Support multi cyclic time(every slave can use different proportional cyclic time)**
 - **Support backup redundancy(TODO)**
 - Support ethercat cmd with shell, ref to IgH
 
-The pic shows dc jitter < 3us (hpm6800evk with flash_xip):
+The pic shows dc jitter ~ 3us (hpm6800evk with flash_xip):
 ![ethercat](docs/assets/ethercat_dc.png)
 
 ## Hardware limitations

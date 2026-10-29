@@ -249,6 +249,7 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
     }
 
     EC_LOG_RAW("Device: %s\n", master->netdev[slave->netdev_idx]->name);
+    EC_LOG_RAW("Online: %s\n", slave_data.online ? "yes" : "no");
     EC_LOG_RAW("State: %s\n", ec_state_string(slave_data.current_state, 0));
 
     EC_LOG_RAW("Identity:\n");
@@ -376,7 +377,7 @@ static void ec_cmd_show_slave_simple(ec_master_t *master, uint32_t slave_idx)
                master->index,
                slave_idx,
                slave->autoinc_address,
-               ec_state_string(slave->current_state, 0),
+               slave->online ? ec_state_string(slave->current_state, 0) : "OFFLINE",
                ec_alstatus_string(slave->alstatus_code));
 }
 

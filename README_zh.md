@@ -19,6 +19,8 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 - 支持热插拔
 	- 自动扫描总线
 	- 拓扑结构发生变化时自动更新 Slave 信息
+	- 断线重连可自动恢复
+	- 新增设备时自动全部重新扫描并停在 preop，需要重新启动
 - 支持自动监控 Slave 状态
 - 支持分布式时钟
 - 支持 CANopen over EtherCAT (COE)
@@ -29,12 +31,12 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 - 支持多主站
 - 支持 PDO 单域和多域通信（单域：所有 slaves 共享一个 LRW datagram，多域：每个 slave 拥有一个 LRW datagram）
 - **最小 PDO cyclic time < 40 us (实际数值受主站硬件和从站硬件影响)**
-- **DC 抖动 < 3us (实际数值受主站硬件和从站硬件影响)**
+- **DC 抖动 ~ 3us (实际数值受主站硬件和从站硬件影响)**
 - **支持多周期（每个从站可以使用不同的成比例的周期）**
 - **支持备份冗余(TODO)**
 - 支持 ethercat 命令行交互，参考 IgH
 
-下图展示 dc 抖动 < 3us （hpm6800evk + flash_xip）:
+下图展示 dc 抖动 ~ 3us （hpm6800evk + flash_xip）:
 ![ethercat](docs/assets/ethercat_dc.png)
 
 ## 硬件限制

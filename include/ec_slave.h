@@ -68,6 +68,7 @@ typedef struct ec_slave {
     ec_slave_state_t current_state;   /**< Current application state. */
     uint32_t alstatus_code;           /**< Error code in AL Status register. */
     bool force_update;                /**< Force update of the slave. */
+    bool online;                      /**< Present and identity checked at the configured position. */
 
     uint16_t configured_rx_mailbox_offset; /**< Configured receive mailbox offset. */
     uint16_t configured_rx_mailbox_size;   /**< Configured receive mailbox size.*/
