@@ -1187,7 +1187,7 @@ void ec_slaves_scanning(ec_master_t *master)
                     goto mutex_unlock;
                 }
 
-                slave->system_time_offset = ref_time[netdev_idx] - EC_READ_U64(datagram->data);
+                slave->system_time_offset = ref_time[slave->netdev_idx] - EC_READ_U64(datagram->data);
             } else {
             }
 
