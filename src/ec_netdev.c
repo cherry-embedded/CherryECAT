@@ -77,6 +77,7 @@ ec_netdev_t *ec_netdev_init(uint8_t netdev_index)
         config.mdio_read = ec_mdio_low_level_read;
         config.mdio_write = ec_mdio_low_level_write;
         config.user_data = netdev;
+        config.phy_port = netdev_index;
 
         // Delay to ensure PHY power up and access to mac
         ec_osal_msleep(200);
@@ -96,18 +97,18 @@ void ec_netdev_poll_link_state(ec_netdev_t *netdev)
 {
 #ifndef CONFIG_EC_PHY_CUSTOM
     struct chry_phy_status status = { 0 };
-    static struct chry_phy_status current_status = { 0 };
+    struct chry_phy_status *current_status = &netdev->phy_status;
 
     chry_phy_get_status(&netdev->phydev, &status);
 
     EC_LOG_DBG("PHY link: %d, speed: %d, duplex: %d\n", status.link, status.speed, status.duplex);
 
-    if (memcmp(&current_status, &status, sizeof(struct chry_phy_status)) != 0) {
-        ec_memcpy(&current_status, &status, sizeof(struct chry_phy_status));
+    if (memcmp(current_status, &status, sizeof(status)) != 0) {
+        ec_memcpy(current_status, &status, sizeof(status));
 
         if (status.link) {
-            netdev->link_state = true;
             ec_netdev_low_level_link_up(netdev, &status);
+            netdev->link_state = true;
         } else {
             netdev->link_state = false;
             ec_netdev_low_level_link_up(netdev, &status);
@@ -117,6 +118,7 @@ void ec_netdev_poll_link_state(ec_netdev_t *netdev)
     ec_netdev_low_level_poll_link_state(netdev);
 #endif
 }
+
 
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_get_txbuf(ec_netdev_t *netdev)
 {

@@ -50,6 +50,7 @@ int chry_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config
     phydev->mdio_write = config->mdio_write;
     phydev->mdio_read = config->mdio_read;
     phydev->user_data = config->user_data;
+    phydev->phy_port = config->phy_port;
 
     for (uint16_t i = 0; i < 32; i++) {
         phy_addr = i;
@@ -75,7 +76,6 @@ int chry_phy_init(struct chry_phy_device *phydev, struct chry_phy_config *config
     }
 
 phydrv_found:
-    phydev->phy_port = config->phy_port;
     phydev->phy_id = phy_id;
     phydev->phy_addr = phy_addr;
     phydev->driver = phydrv;

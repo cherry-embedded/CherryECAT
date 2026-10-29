@@ -39,7 +39,7 @@ typedef struct ec_netdev {
     uint8_t mac_addr[6];
     bool link_state;
     uint8_t tx_frame_index;
-
+    struct chry_phy_status phy_status;
     ec_netdev_stats_t stats;
 } ec_netdev_t;
 
