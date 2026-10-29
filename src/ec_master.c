@@ -484,11 +484,18 @@ int ec_master_start(ec_master_t *master)
         }
     }
 
-    while (!master->scan_done) {
-        ec_osal_msleep(10);
-    }
-
     ec_osal_mutex_take(master->scan_lock);
+
+    if (master->rescan_request || !master->scan_done || !master->slave_count) {
+        ec_osal_mutex_give(master->scan_lock);
+        return -EC_ERR_INVAL;
+    }
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        if (!master->slaves[i].online || !master->slaves[i].config) {
+            ec_osal_mutex_give(master->scan_lock);
+            return -EC_ERR_INVAL;
+        }
+    }
 
     master->actual_working_counter = 0;
     master->expected_working_counter = 0;
@@ -572,7 +579,7 @@ int ec_master_start(ec_master_t *master)
         ec_datagram_lrw(&slave->pdo_datagram, slave->logical_start_address, slave->odata_size + slave->idata_size);
         ec_datagram_zero(&slave->pdo_datagram);
 #endif
-        slave->expected_working_counter = 3;
+        slave->expected_working_counter = (slave->odata_size ? 2 : 0) + (slave->idata_size ? 1 : 0);
         master->expected_working_counter += slave->expected_working_counter;
 
         EC_SLAVE_LOG_INFO("Slave %u: Logical address 0x%08x, obyte %u, ibyte %u, expected working counter %u\n",
@@ -602,7 +609,7 @@ int ec_master_start(ec_master_t *master)
 
 int ec_master_stop(ec_master_t *master)
 {
-    uint8_t netdev_idx;
+    uint64_t stop_time;
 
     if (!master->started) {
         return 0;
@@ -617,23 +624,33 @@ int ec_master_stop(ec_master_t *master)
         master->slaves[i].force_update = true;
     }
 
+    stop_time = jiffies;
     if (!master->rescan_request) {
         while (1) {
-            for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-                if (master->netdev[netdev_idx]->link_state == 0) {
-                    goto out;
+            bool pending = false;
+            for (uint32_t i = 0; i < master->slave_count; i++) {
+                ec_slave_t *slave = &master->slaves[i];
+                if (slave->online && master->netdev[slave->netdev_idx]->link_state &&
+                    slave->current_state != EC_SLAVE_STATE_PREOP) {
+                    pending = true;
+                    break;
                 }
-
-                if ((master->slaves_state[netdev_idx] & EC_SLAVE_STATE_MASK) == EC_SLAVE_STATE_PREOP) {
-                    goto out;
-                }
+            }
+            if (!pending || master->rescan_request) {
+                break;
+            }
+            if (jiffies - stop_time >= 5 * 1000 * 1000 * 1000ULL) {
+                EC_LOG_WRN("Timed out waiting for slaves to leave OP\n");
+                break;
             }
             ec_osal_msleep(10);
         }
     }
 
-out:
     ec_htimer_stop();
+    ec_datagram_unqueue(&master->dc_ref_sync_datagram);
+    ec_datagram_unqueue(&master->dc_all_sync_datagram);
+    master->dc_sync0_valid = false;
 #ifndef CONFIG_EC_PDO_MULTI_DOMAIN
     ec_datagram_clear(&master->pdo_datagram);
 #else
@@ -751,11 +768,14 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
 
     master->actual_working_counter = 0;
 #ifndef CONFIG_EC_PDO_MULTI_DOMAIN
-    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED &&
+        master->pdo_datagram.working_counter > 0) {
         for (uint32_t i = 0; i < master->slave_count; i++) {
             slave = &master->slaves[i];
 
-            if (slave->config && slave->config->pdo_callback) {
+            if (slave->online && !slave->force_update &&
+                slave->current_state == EC_SLAVE_STATE_OP &&
+                slave->config && slave->config->pdo_callback) {
                 slave->config->pdo_callback(slave,
                                             (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
                                             (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
@@ -767,8 +787,12 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
     for (uint32_t i = 0; i < master->slave_count; i++) {
         slave = &master->slaves[i];
 
+        slave->actual_working_counter = 0;
         if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
-            if (slave->config && slave->config->pdo_callback) {
+            if (slave->online && !slave->force_update &&
+                slave->pdo_datagram.working_counter == slave->expected_working_counter &&
+                slave->current_state == EC_SLAVE_STATE_OP &&
+                slave->config && slave->config->pdo_callback) {
                 slave->config->pdo_callback(slave,
                                             (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
                                             (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
@@ -779,7 +803,7 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
     }
 #endif
 
-    if (master->dc_ref_clock) {
+    if (master->dc_ref_clock && master->dc_ref_clock->online) {
         if (!master->dc_sync_with_dc_ref_enable) {
             uint64_t sync_time = ec_timestamp_get_time_ns();
             EC_WRITE_U32(master->dc_ref_sync_datagram.data, sync_time & 0xffffffff);

@@ -428,7 +428,7 @@ static int ec_slave_config(ec_slave_t *slave)
     ec_datagram_t *datagram;
     uint64_t start_time;
     uint8_t step = 0;
-    bool coe_support;
+    bool mailbox_support;
     uint8_t pdo_sm_count;
     uint8_t pdo_sm_offset;
     int ret;
@@ -443,9 +443,9 @@ static int ec_slave_config(ec_slave_t *slave)
         ec_osal_leave_critical_section(flags);
     }
 
-    coe_support = slave->sii.mailbox_protocols & EC_MBXPROT_COE ? true : false;
-    pdo_sm_count = coe_support ? (slave->sm_count - 2) : slave->sm_count;
-    pdo_sm_offset = coe_support ? 2 : 0;
+    mailbox_support = slave->sii.mailbox_protocols ? true : false;
+    pdo_sm_count = mailbox_support ? (slave->sm_count - 2) : slave->sm_count;
+    pdo_sm_offset = mailbox_support ? 2 : 0;
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_INIT);
     if (ret < 0) {
@@ -537,7 +537,7 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
-    if (coe_support) {
+    if (mailbox_support) {
         // Config mailbox sm
         ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYNCM[0]), EC_SYNC_PAGE_SIZE * 2);
         ec_datagram_zero(datagram);
@@ -569,7 +569,7 @@ static int ec_slave_config(ec_slave_t *slave)
         goto errorout;
     }
 
-    if (slave->config && slave->sii.general.coe_details.enable_pdo_assign && coe_support) {
+    if (slave->config && slave->sii.general.coe_details.enable_pdo_assign && mailbox_support) {
         uint32_t data;
 
         /* Config PDO assignments for 0x1c12, 0x1c13
@@ -708,6 +708,29 @@ static int ec_slave_config(ec_slave_t *slave)
     if (slave->config && slave->config->dc_assign_activate) {
         EC_ASSERT_MSG(slave->base_dc_supported, "Slave %u does not support DC", slave->index);
 
+        uint64_t ref_time;
+
+        // Refresh the initial offset for this slave on every DC configuration.
+        ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->RCV_TIME[0]), 4);
+        ec_datagram_zero(datagram);
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
+        if (ret < 0) {
+            step = 23;
+            goto errorout;
+        }
+        ref_time = datagram->jiffies_sent;
+
+        ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->RCVT_ECAT_PU), 8);
+        ec_datagram_zero(datagram);
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
+        if (ret < 0) {
+            step = 24;
+            goto errorout;
+        }
+        slave->system_time_offset = ref_time - EC_READ_U64(datagram->data);
+
         // set DC system time offset and transmission delay
         ec_datagram_fpwr(datagram, slave->station_address, ESCREG_OF(ESCREG->SYS_TIME_OFFSET), 12);
         EC_WRITE_U64(datagram->data, slave->system_time_offset);
@@ -715,7 +738,8 @@ static int ec_slave_config(ec_slave_t *slave)
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
-            return ret;
+            step = 25;
+            goto errorout;
         }
 
         // set DC cycle times
@@ -725,7 +749,7 @@ static int ec_slave_config(ec_slave_t *slave)
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
-            step = 23;
+            step = 26;
             goto errorout;
         }
 
@@ -736,7 +760,7 @@ static int ec_slave_config(ec_slave_t *slave)
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
-            step = 24;
+            step = 27;
             goto errorout;
         }
 
@@ -744,7 +768,7 @@ static int ec_slave_config(ec_slave_t *slave)
         if (time_diff > EC_DC_MAX_SYNC_DIFF_NS) {
             start_time++;
             if (start_time > EC_DC_SYNC_WAIT_COUNT) {
-                step = 25;
+                step = 28;
                 ret = -EC_ERR_TIMEOUT;
                 goto errorout;
             }
@@ -767,7 +791,7 @@ static int ec_slave_config(ec_slave_t *slave)
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
-            step = 26;
+            step = 29;
             goto errorout;
         }
 
@@ -776,7 +800,7 @@ static int ec_slave_config(ec_slave_t *slave)
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(slave->master, datagram, true, true);
         if (ret < 0) {
-            step = 27;
+            step = 30;
             goto errorout;
         }
 
@@ -790,7 +814,7 @@ static int ec_slave_config(ec_slave_t *slave)
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_SAFEOP);
     if (ret < 0) {
-        step = 28;
+        step = 31;
         goto errorout;
     }
 
@@ -802,7 +826,7 @@ static int ec_slave_config(ec_slave_t *slave)
 
     ret = ec_slave_state_change(slave, EC_SLAVE_STATE_OP);
     if (ret < 0) {
-        step = 29;
+        step = 32;
         goto errorout;
     }
 
@@ -831,11 +855,15 @@ static void ec_master_clear_slaves(ec_master_t *master)
             ec_slave_clear(slave);
         }
 
-        ec_osal_free(master->slaves);
+        ec_slave_t *slaves = master->slaves;
         master->slaves = NULL;
+        master->slave_count = 0;
+        ec_osal_free(slaves);
     }
 
     master->slave_count = 0;
+    master->dc_ref_clock = NULL;
+    master->dc_sync0_valid = false;
 }
 
 static int ec_master_calc_topology(ec_master_t *master, ec_slave_t *port0_slave, unsigned int *slave_position)
@@ -932,6 +960,90 @@ static void ec_master_calc_dc(ec_master_t *master)
     ec_master_calc_transmission_delays(master);
 }
 
+static void ec_slave_set_offline(ec_slave_t *slave)
+{
+    if (slave->online) {
+        EC_SLAVE_LOG_WRN("Slave %u offline, retaining configuration\n", slave->index);
+    }
+    size_t flags = ec_osal_enter_critical_section();
+    slave->online = false;
+    slave->current_state = 0;
+    slave->actual_working_counter = 0;
+    slave->force_update = true;
+    if (slave == slave->master->dc_ref_clock) {
+        slave->master->dc_sync0_valid = false;
+        slave->master->dc_sync_integral = 0;
+    }
+    ec_osal_leave_critical_section(flags);
+}
+
+/* Linear chain: a cable break may remove a suffix, but must not change the
+ * identity/order of the remaining configured positions. Validate the whole
+ * chain before allowing any recovered slave to enter OP. */
+static void ec_master_check_topology(ec_master_t *master)
+{
+    ec_datagram_t *datagram = &master->main_datagram;
+
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        ec_slave_t *slave = &master->slaves[i];
+        uint16_t address;
+        uint32_t identity[4];
+        int ret;
+
+        if (!master->link_state[slave->netdev_idx]) {
+            ec_slave_set_offline(slave);
+            continue;
+        }
+        ec_datagram_aprd(datagram, slave->autoinc_address, ESCREG_OF(ESCREG->STATION_ADDR), 2);
+        ec_datagram_zero(datagram);
+        datagram->netdev_idx = slave->netdev_idx;
+        ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+        if (ret < 0) {
+            ec_slave_set_offline(slave);
+            continue;
+        }
+        address = EC_READ_U16(datagram->data);
+        if (address == slave->station_address && slave->online) {
+            continue;
+        }
+
+        ec_slave_set_offline(slave);
+        if (address != 0 && address != slave->station_address) {
+            goto topology_changed;
+        }
+        ret = ec_sii_read(master, slave->index, datagram, 0x0008, identity, sizeof(identity));
+        if (ret < 0) {
+            continue; // Transport/EEPROM error is not evidence of a new device.
+        }
+        if (EC_READ_U32(&identity[0]) != slave->sii.vendor_id ||
+            EC_READ_U32(&identity[1]) != slave->sii.product_code ||
+            EC_READ_U32(&identity[2]) != slave->sii.revision_number ||
+            EC_READ_U32(&identity[3]) != slave->sii.serial_number) {
+            goto topology_changed;
+        }
+        if (address == 0) {
+            ec_datagram_apwr(datagram, slave->autoinc_address, ESCREG_OF(ESCREG->STATION_ADDR), 2);
+            EC_WRITE_U16(datagram->data, slave->station_address);
+            datagram->netdev_idx = slave->netdev_idx;
+            ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+            if (ret < 0) {
+                continue;
+            }
+        }
+        slave->alstatus_code = 0;
+        slave->online = true;
+        EC_SLAVE_LOG_INFO("Slave %u reconnected, restoring configuration\n", slave->index);
+        continue;
+
+    topology_changed:
+        EC_LOG_WRN("Unexpected device/order at slave %u; stopping OP and rescanning\n", i);
+        size_t flags = ec_osal_enter_critical_section();
+        master->rescan_request = true;
+        ec_osal_leave_critical_section(flags);
+        return;
+    }
+}
+
 static void ec_master_scan_slaves_state(ec_master_t *master)
 {
     ec_datagram_t *datagram;
@@ -944,15 +1056,26 @@ static void ec_master_scan_slaves_state(ec_master_t *master)
     for (uint32_t slave_index = 0; slave_index < master->slave_count; slave_index++) {
         slave = master->slaves + slave_index;
 
+        if (!slave->online) {
+            continue;
+        }
+
         ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->AL_STAT), 2);
         ec_datagram_zero(datagram);
         datagram->netdev_idx = slave->netdev_idx;
         ret = ec_master_queue_ext_datagram(master, datagram, true, true);
         if (ret < 0) {
+            ec_slave_set_offline(slave);
             continue;
         }
 
         slave_state = EC_READ_U8(datagram->data);
+        if (slave_state == EC_SLAVE_STATE_INIT &&
+            slave->current_state != EC_SLAVE_STATE_INIT && !slave->force_update) {
+            // Verify identity on the next scan before recovering an unexpected reset.
+            ec_slave_set_offline(slave);
+            continue;
+        }
 
         if (slave->current_state != slave_state) {
             EC_SLAVE_LOG_WRN("Slave %u state changed to %s\n", slave->index, ec_state_string(slave_state, 0));
@@ -968,9 +1091,11 @@ static void ec_master_scan_slaves_state(ec_master_t *master)
             slave->alstatus_code = 0;
         }
 
-        if (((slave->requested_state != slave->current_state) && (slave->alstatus_code == 0)) || slave->force_update) {
-            ec_slave_config(slave);
-            slave->force_update = false;
+        if (((slave->requested_state != slave->current_state) && (slave->alstatus_code == 0)) ||
+            slave->force_update) {
+            if (ec_slave_config(slave) == 0) {
+                slave->force_update = false;
+            }
         }
     }
 }
@@ -981,8 +1106,7 @@ void ec_slaves_scanning(ec_master_t *master)
     ec_slave_t *slave;
     uint8_t netdev_idx;
     uint64_t scan_jiffies;
-    uint64_t ref_time[CONFIG_EC_MAX_NETDEVS] = { 0 };
-    int ret;
+    int ret = 0;
 
     datagram = &master->main_datagram;
 
@@ -996,32 +1120,31 @@ void ec_slaves_scanning(ec_master_t *master)
             EC_LOG_INFO("Detect link down on %s\n",
                         master->netdev[netdev_idx]->name);
 
-            ec_master_stop(master);
-
-            ec_osal_mutex_take(master->scan_lock);
-            ec_master_clear_slaves(master);
-
-            for (uint8_t i = EC_NETDEV_MAIN; i < CONFIG_EC_MAX_NETDEVS; i++) {
-                master->slaves_state[i] = 0x00;
-                master->slaves_working_counter[i] = 0;
+            for (uint32_t i = 0; i < master->slave_count; i++) {
+                if (master->slaves[i].netdev_idx == netdev_idx) {
+                    ec_slave_set_offline(&master->slaves[i]);
+                }
             }
-            master->scan_done = false;
-            ec_osal_mutex_give(master->scan_lock);
+            master->slaves_state[netdev_idx] = 0;
+            master->slaves_working_counter[netdev_idx] = 0;
         }
         master->link_state[netdev_idx] = master->netdev[netdev_idx]->link_state;
     }
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+        if (!master->link_state[netdev_idx]) {
+            continue;
+        }
         ec_datagram_brd(datagram, ESCREG_OF(ESCREG->AL_STAT), 2);
         ec_datagram_zero(datagram);
         datagram->netdev_idx = netdev_idx;
         ret = ec_master_queue_ext_datagram(master, datagram, true, true);
-        if (ret < 0) {
-            return;
+        if (ret < 0 && ret != -EC_ERR_WC) {
+            // Check individual positions below; one lost broadcast is not a topology change.
+            continue;
         }
 
         if (datagram->working_counter != master->slaves_working_counter[netdev_idx]) {
-            master->rescan_request = true;
             master->slaves_working_counter[netdev_idx] = datagram->working_counter;
             EC_LOG_INFO("%u slaves responding on %s device\n",
                         master->slaves_working_counter[netdev_idx],
@@ -1041,14 +1164,41 @@ void ec_slaves_scanning(ec_master_t *master)
         }
     }
 
+    if (master->scan_done && !master->rescan_request) {
+        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+            uint32_t configured_count = 0;
+            for (uint32_t i = 0; i < master->slave_count; i++) {
+                configured_count += master->slaves[i].netdev_idx == netdev_idx;
+            }
+            if (master->slaves_working_counter[netdev_idx] > configured_count) {
+                EC_LOG_WRN("New device detected; stopping OP and rescanning\n");
+                size_t flags = ec_osal_enter_critical_section();
+                master->rescan_request = true;
+                ec_osal_leave_critical_section(flags);
+            }
+        }
+        if (!master->rescan_request) {
+            ec_master_check_topology(master);
+        }
+    } else if (!master->scan_done) {
+        for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+            if (master->slaves_working_counter[netdev_idx]) {
+                size_t flags = ec_osal_enter_critical_section();
+                master->rescan_request = true;
+                ec_osal_leave_critical_section(flags);
+            }
+        }
+    }
+
     if (master->rescan_request) {
         uint32_t count = 0, slave_index, autoinc_address;
+        ec_slave_t *slaves;
         uint8_t step = 0;
+        size_t flags;
 
         ec_master_stop(master);
 
         ec_osal_mutex_take(master->scan_lock);
-        master->rescan_request = false;
         master->scan_done = false;
         EC_LOG_INFO("Rescanning bus...\n");
 
@@ -1065,20 +1215,19 @@ void ec_slaves_scanning(ec_master_t *master)
             goto mutex_unlock;
         }
 
-        master->slaves = ec_osal_malloc(sizeof(ec_slave_t) * count);
-        if (!master->slaves) {
+        slaves = ec_osal_malloc(sizeof(ec_slave_t) * count);
+        if (!slaves) {
             step = 2;
             goto mutex_unlock;
         }
 
-        master->slave_count = count;
-        memset(master->slaves, 0, sizeof(ec_slave_t) * count);
+        memset(slaves, 0, sizeof(ec_slave_t) * count);
 
         slave_index = 0;
         for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             autoinc_address = 0;
             for (uint32_t j = 0; j < master->slaves_working_counter[netdev_idx]; j++) {
-                slave = master->slaves + slave_index;
+                slave = slaves + slave_index;
 
                 ec_slave_init(slave, slave_index, master, netdev_idx, (int16_t)autoinc_address * (-1), slave_index + 1001);
 
@@ -1086,11 +1235,23 @@ void ec_slaves_scanning(ec_master_t *master)
                 autoinc_address++;
             }
         }
+        master->slaves = slaves;
+        master->slave_count = count;
 
         for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
             if (master->slaves_working_counter[netdev_idx] == 0) {
                 continue;
             }
+            // Request INIT before changing addresses; mailbox SMs are configured before PREOP later.
+            ec_datagram_bwr(datagram, ESCREG_OF(ESCREG->AL_CTRL), 2);
+            EC_WRITE_U16(datagram->data, EC_SLAVE_STATE_INIT | EC_SLAVE_STATE_ACK_ERR);
+            datagram->netdev_idx = netdev_idx;
+            ret = ec_master_queue_ext_datagram(master, datagram, true, true);
+            if (ret < 0) {
+                step = 3;
+                goto mutex_unlock;
+            }
+
             // Clear station address
             ec_datagram_bwr(datagram, ESCREG_OF(ESCREG->STATION_ADDR), 2);
             ec_datagram_zero(datagram);
@@ -1101,7 +1262,7 @@ void ec_slaves_scanning(ec_master_t *master)
                 goto mutex_unlock;
             }
 
-            // Clear receive time for dc measure delays
+            // Latch port receive times for DC transmission-delay measurement
             ec_datagram_bwr(datagram, ESCREG_OF(ESCREG->RCV_TIME[0]), 4);
             ec_datagram_zero(datagram);
             datagram->netdev_idx = netdev_idx;
@@ -1110,8 +1271,6 @@ void ec_slaves_scanning(ec_master_t *master)
                 step = 4;
                 goto mutex_unlock;
             }
-
-            ref_time[netdev_idx] = datagram->jiffies_sent;
         }
 
         for (slave_index = 0; slave_index < master->slave_count; slave_index++) {
@@ -1198,18 +1357,6 @@ void ec_slaves_scanning(ec_master_t *master)
                 for (uint8_t i = 0; i < EC_MAX_PORTS; i++) {
                     slave->ports[i].receive_time = EC_READ_U32(datagram->data + 4 * i);
                 }
-
-                ec_datagram_fprd(datagram, slave->station_address, ESCREG_OF(ESCREG->RCVT_ECAT_PU), 8);
-                ec_datagram_zero(datagram);
-                datagram->netdev_idx = slave->netdev_idx;
-                ret = ec_master_queue_ext_datagram(master, datagram, true, true);
-                if (ret < 0) {
-                    step = 9;
-                    goto mutex_unlock;
-                }
-
-                slave->system_time_offset = ref_time[slave->netdev_idx] - EC_READ_U64(datagram->data);
-            } else {
             }
 
             // Read data link status
@@ -1360,11 +1507,8 @@ void ec_slaves_scanning(ec_master_t *master)
 
             EC_SLAVE_LOG_INFO("Slave %u parse eeprom success\n", slave->index);
 
-            ret = ec_slave_config(slave);
-            if (ret < 0) {
-                step = 16;
-                goto mutex_unlock;
-            }
+            slave->online = true;
+            slave->force_update = true;
         }
 
         EC_LOG_INFO("Bus scanning completed in %u ms\n", (unsigned int)((jiffies - scan_jiffies) / 1000000));
@@ -1373,13 +1517,16 @@ void ec_slaves_scanning(ec_master_t *master)
         ec_master_calc_dc(master);
 
     mutex_unlock:
+        flags = ec_osal_enter_critical_section();
+        master->rescan_request = false;
+        ec_osal_leave_critical_section(flags);
         ec_osal_mutex_give(master->scan_lock);
         if (step != 0) {
             EC_LOG_ERR("Bus scanning failed at step %u, errorcode: %d", step, ret);
         }
     }
 
-    if (master->slave_count && master->scan_done) {
+    if (!master->rescan_request && master->slave_count && master->scan_done) {
         ec_master_scan_slaves_state(master);
     }
 }
