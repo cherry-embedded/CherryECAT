@@ -34,8 +34,7 @@ ethercat 命令行
 - **ethercat foe_read**: 通过 FoE 读取文件, 使用 `-p` 参数选择指定从站，后续参数依次为 filename, pwd 和 16进制数组，数组从低位到高位输入
 - **ethercat foe_write**: 通过 FoE 写入文件，使用 `-p` 参数选择指定从站，后续参数依次为 filename, pwd 和 16进制数组，数组从低位到高位输入
 - **ethercat eoe_start**: 启动 EoE 功能
-- **ethercat pdo_read**: 读取过程数据，使用 `-p` 参数选择指定从站
-- **ethercat pdo_write**: 写入过程数据，使用 `-p` 参数选择指定从站，后续参数依次为 offset 和 16进制数组，数组从低位到高位输入，offset 表示写入数据在 PDO 中的偏移位置
+- **ethercat pdo_read -p <idx>**: 读取指定从站的输入和输出 PDO 十六进制数据，索引从 0 开始。需先启动主站，命令直接从 PDO 映射地址分别打印输出 RxPDO 和输入 TxPDO，不复制到临时缓冲区。
 - **ethercat sii_read**: 读取 SII 数据， 使用 `-p` 参数选择指定从站
 - **ethercat sii_write**: 写入 SII 数据， 使用 `-p` 参数选择指定从站
 - **ethercat wc**: 查看主站工作计数器
@@ -103,4 +102,108 @@ ethercat 命令行
     global_cmd_master->dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
     ec_master_start(global_cmd_master);
 
-- 对于有实时性要求的 PDO 处理，可以在设置的 `pdo_callback` 中进行。对于没有实时性要求的，则可以使用 `ec_master_get_slave_domain_*` 系列函数进行读写，但是需要加关中断操作。
+- PDO 数据统一在配置的 ``pdo_callback`` 中处理：从 ``input`` 读取输入，向 ``output`` 写入下一周期的输出，长度分别为 ``slave->idata_size`` 和 ``slave->odata_size``。回调不能阻塞，应用应在回调中读写 PDO。诊断命令 ``pdo_read -p <idx>`` 直接读取 PDO 映射地址，打印期间数据仍可能随通信周期更新。
+
+HPMicro IO 示例
+-----------------------
+
+示例支持 HPM IO 从站（VID ``0x0048504D``，PID ``0x00000001`` / ``0x00000005``）。
+当前设备表使用 ``0x1600`` / ``0x1A00`` PDO 映射，主站输出和输入各占 4 字节。
+以下示例假设总线上只有一个 IO 从站，其索引为 0：
+
+.. code-block:: text
+
+    ethercat start 1000
+    ethercat pdo_read -p 0
+    ethercat stop
+
+``1000`` 表示通信周期为 1000 微秒
+
+HPMicro demo 的 ``ec_pdo_callback`` 在 IO 从站处于 OP 时，将 32 位输入值复制到输出，
+核心处理如下：
+
+.. code-block:: c
+
+    uint32_t value = EC_READ_U32(input);
+    EC_WRITE_U32(output, value);
+
+如果需要测试固定输出，可将 IO 分支的上述处理替换为：
+
+.. code-block:: c
+
+    EC_WRITE_U32(output, 0x00000001U);
+
+重新编译运行后，通过 ``ethercat pdo_read -p 0`` 查看输出区，固定值 1 的字节序列为
+``01 00 00 00``。``output`` 为主站发送给从站的数据，``input`` 为从站返回给主站的数据。
+
+HPMicro CIA402 电机示例
+-----------------------
+
+示例支持 HPM CIA402 从站（VID ``0x0048504D``，PID ``0x00000003`` / ``0x00000004``），
+使用设备表中的 8 字节 CSV/CSP PDO 映射。三个命令均通过 ``-p`` 指定从站索引（0 到 31）：
+
+- ``motor_control -p <idx> <0|1>``：关闭或使能电机。命令仅更新 enable 变量。回调在 disable 时直接发送 Disable voltage；enable 时才按状态字依次发送 Shutdown、Switch on、Enable operation，遇到 Fault 时发送一次 Fault reset。关闭时保留速度和位置指令。
+- ``speed_control -p <idx> <value>``：设置 CSV 目标速度（0x60FF），支持有符号 32 位整数。
+- ``position_control -p <idx> <value>``：设置 CSP 绝对目标位置（0x607A），支持有符号 32 位整数。
+
+速度和位置使用从站对象字典的原始单位。命令只更新目标值，PDO 读写仍在 ``ec_pdo_callback`` 中完成。
+上电时默认关闭电机，重启周期通信不会清除命令变量；未下发位置指令时，CSP 目标跟随实际位置，避免默认目标为零。
+位置命令直接设置目标，不包含轨迹插补或速度、加速度限制。
+
+``ethercat start`` 的模式参数仅选择主站 PDO 映射，不会自动写入从站的 ``0x6060``。
+当前 HPM CIA402 从站的 ``0x6060`` 默认值为 0，选择 ``0x1601`` 或 ``0x1602`` 映射也不会
+自动切换运行模式，因此需要在 PREOP 阶段通过 CoE 写入 ``0x6060:00``：
+
+.. list-table:: CSP / CSV 模式设置
+   :header-rows: 1
+   :widths: 15 25 30 30
+
+   * - 模式
+     - ``start`` 模式参数
+     - RxPDO / TxPDO
+     - ``0x6060:00``
+   * - CSP
+     - 1
+     - ``0x1601`` / ``0x1A01``
+     - 8（``08``）
+   * - CSV
+     - 2
+     - ``0x1602`` / ``0x1A02``
+     - 9（``09``）
+
+``coe_write`` 的 index、subindex、data 均按十六进制解析，``08`` / ``09`` 会作为 1 字节写入。
+启动通信并进入 OP 后，读取 ``0x6061:00`` 确认实际运行模式，再使能电机。
+以下示例假设电机从站索引为 0；如果 IO 从站为 0、电机从站为 1，将电机相关命令中的
+``-p 0`` 改为 ``-p 1``，``ethercat start`` 仍会启动总线上的全部从站。
+
+CSV 示例（``0x6060 = 9``，``ethercat start`` 的模式参数为 2）：
+
+.. code-block:: text
+
+    ethercat coe_write -p 0 6060 00 09
+    ethercat start 1000 2
+    ethercat coe_read -p 0 6061 00
+    motor_control -p 0 1
+    speed_control -p 0 100
+    ethercat pdo_read -p 0
+    speed_control -p 0 0
+    motor_control -p 0 0
+    ethercat stop
+
+读取的 ``0x6061`` 应为 ``09``。``speed_control`` 设置目标速度，不能代替 ``0x6060`` 的模式设置。
+
+CSP 示例（``0x6060 = 8``，``ethercat start`` 的模式参数为 1）：
+
+.. code-block:: text
+
+    ethercat coe_write -p 0 6060 00 08
+    ethercat start 1000 1
+    ethercat coe_read -p 0 6061 00
+    motor_control -p 0 1
+    position_control -p 0 1000
+    ethercat pdo_read -p 0
+    motor_control -p 0 0
+    ethercat stop
+
+读取的 ``0x6061`` 应为 ``08``。切换模式前先关闭电机并执行 ``ethercat stop``，
+回到 PREOP 后重新写入 ``0x6060``，再使用对应的模式参数启动通信。
