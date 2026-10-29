@@ -7,7 +7,7 @@ Use ``git clone https://github.com/sakumisu/cherryecat_stm32h7.git --recursive``
 ## Caution
 
 - Must enable `USE_HAL_TIM_REGISTER_CALLBACKS to 1 in stm32h7xx_hal_conf.h`
-- STM32H7 HAL version must >= 1.11.x
+- Use the STM32H7 ETH HAL API with `HAL_ETH_DescAssignMemory()`, `HAL_ETH_IsRxDataAvailable()`, `HAL_ETH_GetRxDataBuffer()`, `HAL_ETH_GetRxDataLength()`, `HAL_ETH_GetRxDataInfo()` and `HAL_ETH_BuildRxDescriptors()`.
 - Must modify sct file for `RxDescripSection`, `TxDescripSection` and `TRx_PoolSection`
 
 ```

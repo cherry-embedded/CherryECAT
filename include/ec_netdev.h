@@ -49,6 +49,6 @@ ec_netdev_t *ec_netdev_init(uint8_t netdev_index);
 void ec_netdev_poll_link_state(ec_netdev_t *netdev);
 uint8_t *ec_netdev_get_txbuf(ec_netdev_t *netdev);
 int ec_netdev_send(ec_netdev_t *netdev, uint32_t size);
-void ec_netdev_receive(ec_netdev_t *netdev, uint8_t *frame, uint32_t size);
+void ec_netdev_receive(ec_netdev_t *netdev);
 
 #endif

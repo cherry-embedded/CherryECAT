@@ -163,11 +163,6 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
     return &g_netdev;
 }
 
-void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
-{
-    R_ETHER_LinkProcess(&g_ether0_ctrl);
-}
-
 EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 {
     return (uint8_t *)tx_buffer[netdev->tx_frame_index];
@@ -188,27 +183,27 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_
     return 0;
 }
 
-EC_FAST_CODE_SECTION int ec_netdev_low_level_input(ec_netdev_t *netdev)
+EC_FAST_CODE_SECTION int ec_netdev_low_level_get_rxbuf(ec_netdev_t *netdev, uint8_t **buffer, uint32_t *size)
 {
-    fsp_err_t res;
-    uint8_t *buffer;
-    uint32_t len = 0;
-
-    res = R_ETHER_Read(&g_ether0_ctrl, (void *)&buffer, &len);
-    if (res != FSP_SUCCESS) {
+    if (R_ETHER_Read(&g_ether0_ctrl, (void *)buffer, size) != FSP_SUCCESS) {
         return -1;
     }
-
-    ec_netdev_receive(netdev, buffer, len);
-
-    R_ETHER_BufferRelease(&g_ether0_ctrl);
-
     return 0;
+}
+
+EC_FAST_CODE_SECTION void ec_netdev_low_level_release_rxbuf(ec_netdev_t *netdev)
+{
+    R_ETHER_BufferRelease(&g_ether0_ctrl);
+}
+
+void ec_netdev_low_level_poll_link_state(ec_netdev_t *netdev)
+{
+    R_ETHER_LinkProcess(&g_ether0_ctrl);
 }
 
 static ec_htimer_cb g_ec_htimer_cb = NULL;
 static void *g_ec_htimer_arg = NULL;
-static uint32_t g_timer_reload_us_div = 0;
+static double g_timer_tick_ns;
 
 void cherryecat_htimer_callback(timer_callback_args_t *p_args)
 {
@@ -226,13 +221,13 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
 
     R_GPT_InfoGet(&g_timer0_ctrl, &time_info);
 
-    g_timer_reload_us_div = time_info.clock_frequency / 1000000;
+    g_timer_tick_ns = 1000000000.0 / time_info.clock_frequency;
 
     g_ec_htimer_cb = cb;
     g_ec_htimer_arg = arg;
 
     fsp_err |= R_GPT_CounterSet(&g_timer0_ctrl, 0);
-    fsp_err |= R_GPT_PeriodSet(&g_timer0_ctrl, us * g_timer_reload_us_div);
+    fsp_err |= R_GPT_PeriodSet(&g_timer0_ctrl, (uint64_t)time_info.clock_frequency * us / 1000000);
     fsp_err |= R_GPT_Start(&g_timer0_ctrl);
 
     if (fsp_err != FSP_SUCCESS) {
@@ -245,9 +240,10 @@ void ec_htimer_stop(void)
     R_GPT_Stop(&g_timer0_ctrl);
 }
 
-EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
+EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t ns)
 {
-    R_GPT_PeriodSet(&g_timer0_ctrl, us * g_timer_reload_us_div);
+    uint32_t ticks = ns / g_timer_tick_ns + 0.5;
+    R_GPT_PeriodSet(&g_timer0_ctrl, ticks);
 }
 
 void cherryecat_ether_callback(ether_callback_args_t *p_args)
@@ -266,8 +262,6 @@ void cherryecat_ether_callback(ether_callback_args_t *p_args)
         * interrupt occurs, send rx mailbox. */
         case ETHER_EVENT_INTERRUPT: ///< BSD Interrupt event
         {
-            while (ec_netdev_low_level_input(&g_netdev) == 0) {
-            }
             break;
         }
 

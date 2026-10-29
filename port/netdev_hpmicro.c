@@ -11,25 +11,23 @@
 #include "ec_master.h"
 #include "hpm_sdk_version.h"
 
-#if defined(HPM_ENET_RGMII) && HPM_ENET_RGMII
-#define RGMII 1
-#elif defined(HPM_ENET_RMII) && HPM_ENET_RMII
-#define RMII 1
+#if defined(RGMII) && RGMII
+#define HPM_ENET_RGMII 1
 #endif
 
-#if !defined(RMII) && !defined(RGMII)
-#error "Please define RMII or RGMII in ec_config.h to choose the ENET interface type"
+#if defined(RMII) && RMII
+#define HPM_ENET_RMII 1
 #endif
 
-#if defined(RGMII)
-#define ENET_INF_TYPE enet_inf_rgmii
-#define ENET          BOARD_ENET_RGMII
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+#define BOARD_NETDEV_COUNT 2 // only support hpm6750
 #else
-#define ENET_INF_TYPE enet_inf_rmii
-#define ENET          BOARD_ENET_RMII
+#define BOARD_NETDEV_COUNT 1
 #endif
 
-#define __ENABLE_ENET_RECEIVE_INTERRUPT 1
+#if !defined(HPM_ENET_RGMII) && !defined(HPM_ENET_RMII)
+#error "Please select RGMII or RMII"
+#endif
 
 #define MAC_ADDR0 0x00
 #define MAC_ADDR1 0x80
@@ -40,25 +38,25 @@
 
 #define ENET_TX_BUFF_COUNT CONFIG_EC_MAX_ENET_TXBUF_COUNT
 #define ENET_RX_BUFF_COUNT CONFIG_EC_MAX_ENET_RXBUF_COUNT
-#define ENET_RX_BUFF_SIZE  ENET_MAX_FRAME_SIZE
-#define ENET_TX_BUFF_SIZE  ENET_MAX_FRAME_SIZE
+#define ENET_RX_BUFF_SIZE  1536
+#define ENET_TX_BUFF_SIZE  1536
 
 ATTR_PLACE_AT_NONCACHEABLE_WITH_ALIGNMENT(ENET_SOC_DESC_ADDR_ALIGNMENT)
-__RW enet_rx_desc_t dma_rx_desc_tab[ENET_RX_BUFF_COUNT]; /* Ethernet Rx DMA Descriptor */
+__RW enet_rx_desc_t dma_rx_desc_tab[BOARD_NETDEV_COUNT][ENET_RX_BUFF_COUNT]; /* Ethernet Rx DMA Descriptor */
 
 ATTR_PLACE_AT_NONCACHEABLE_WITH_ALIGNMENT(ENET_SOC_DESC_ADDR_ALIGNMENT)
-__RW enet_tx_desc_t dma_tx_desc_tab[ENET_TX_BUFF_COUNT]; /* Ethernet Tx DMA Descriptor */
+__RW enet_tx_desc_t dma_tx_desc_tab[BOARD_NETDEV_COUNT][ENET_TX_BUFF_COUNT]; /* Ethernet Tx DMA Descriptor */
 
 ATTR_PLACE_AT_FAST_RAM_WITH_ALIGNMENT(ENET_SOC_BUFF_ADDR_ALIGNMENT)
-__RW uint8_t rx_buff[ENET_RX_BUFF_COUNT][ENET_RX_BUFF_SIZE]; /* Ethernet Receive Buffer */
+__RW uint8_t rx_buff[BOARD_NETDEV_COUNT][ENET_RX_BUFF_COUNT][ENET_RX_BUFF_SIZE]; /* Ethernet Receive Buffer */
 
 ATTR_PLACE_AT_FAST_RAM_WITH_ALIGNMENT(ENET_SOC_BUFF_ADDR_ALIGNMENT)
-__RW uint8_t tx_buff[ENET_TX_BUFF_COUNT][ENET_TX_BUFF_SIZE]; /* Ethernet Transmit Buffer */
+__RW uint8_t tx_buff[BOARD_NETDEV_COUNT][ENET_TX_BUFF_COUNT][ENET_TX_BUFF_SIZE]; /* Ethernet Transmit Buffer */
 
-enet_desc_t desc;
-uint8_t mac[ETH_ALEN];
+enet_desc_t desc[BOARD_NETDEV_COUNT];
+uint8_t mac[BOARD_NETDEV_COUNT][ETH_ALEN];
 
-ec_netdev_t g_netdev;
+ec_netdev_t g_netdev[BOARD_NETDEV_COUNT];
 
 ATTR_WEAK void enet_get_mac_address(uint8_t *mac)
 {
@@ -85,41 +83,54 @@ ATTR_WEAK void enet_get_mac_address(uint8_t *mac)
     }
 }
 
-hpm_stat_t enet_init(ENET_Type *ptr)
+hpm_stat_t enet_init(uint8_t idx)
 {
     enet_int_config_t int_config = { .int_enable = 0, .int_mask = 0 };
     enet_mac_config_t enet_config;
     enet_tx_control_config_t enet_tx_control_config;
+    enet_inf_type_t intf;
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (idx == 0) ? HPM_ENET0 : HPM_ENET1;
+    intf = (idx == 0) ? enet_inf_rgmii : enet_inf_rmii;
+#else
+    ptr = HPM_ENET0;
+#if defined(HPM_ENET_RGMII)
+    intf = enet_inf_rgmii;
+#elif defined(HPM_ENET_RMII)
+    intf = enet_inf_rmii;
+#endif
+#endif
 
     /* Initialize td, rd and the corresponding buffers */
-    memset((uint8_t *)dma_tx_desc_tab, 0x00, sizeof(dma_tx_desc_tab));
-    memset((uint8_t *)dma_rx_desc_tab, 0x00, sizeof(dma_rx_desc_tab));
-    memset((uint8_t *)rx_buff, 0x00, sizeof(rx_buff));
-    memset((uint8_t *)tx_buff, 0x00, sizeof(tx_buff));
+    memset((uint8_t *)dma_tx_desc_tab[idx], 0x00, sizeof(dma_tx_desc_tab[idx]));
+    memset((uint8_t *)dma_rx_desc_tab[idx], 0x00, sizeof(dma_rx_desc_tab[idx]));
+    memset((uint8_t *)rx_buff[idx], 0x00, sizeof(rx_buff[idx]));
+    memset((uint8_t *)tx_buff[idx], 0x00, sizeof(tx_buff[idx]));
 
-    desc.tx_desc_list_head = (enet_tx_desc_t *)core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)dma_tx_desc_tab);
-    desc.rx_desc_list_head = (enet_rx_desc_t *)core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)dma_rx_desc_tab);
+    desc[idx].tx_desc_list_head = (enet_tx_desc_t *)core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)dma_tx_desc_tab[idx]);
+    desc[idx].rx_desc_list_head = (enet_rx_desc_t *)core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)dma_rx_desc_tab[idx]);
 
-    desc.tx_buff_cfg.buffer = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)tx_buff);
-    desc.tx_buff_cfg.count = ENET_TX_BUFF_COUNT;
-    desc.tx_buff_cfg.size = ENET_TX_BUFF_SIZE;
+    desc[idx].tx_buff_cfg.buffer = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)tx_buff[idx]);
+    desc[idx].tx_buff_cfg.count = ENET_TX_BUFF_COUNT;
+    desc[idx].tx_buff_cfg.size = ENET_TX_BUFF_SIZE;
 
-    desc.rx_buff_cfg.buffer = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)rx_buff);
-    desc.rx_buff_cfg.count = ENET_RX_BUFF_COUNT;
-    desc.rx_buff_cfg.size = ENET_RX_BUFF_SIZE;
+    desc[idx].rx_buff_cfg.buffer = core_local_mem_to_sys_address(BOARD_RUNNING_CORE, (uint32_t)rx_buff[idx]);
+    desc[idx].rx_buff_cfg.count = ENET_RX_BUFF_COUNT;
+    desc[idx].rx_buff_cfg.size = ENET_RX_BUFF_SIZE;
 
     /*Get a default control config for tx descriptor */
     enet_get_default_tx_control_config(ptr, &enet_tx_control_config);
 
     /* Set the control config for tx descriptor */
-    ec_memcpy(&desc.tx_control_config, &enet_tx_control_config, sizeof(enet_tx_control_config_t));
+    ec_memcpy(&desc[idx].tx_control_config, &enet_tx_control_config, sizeof(enet_tx_control_config_t));
 
     /* Get MAC address */
-    enet_get_mac_address(mac);
+    enet_get_mac_address(mac[idx]);
 
     /* Set MAC0 address */
-    enet_config.mac_addr_high[0] = mac[5] << 8 | mac[4];
-    enet_config.mac_addr_low[0] = mac[3] << 24 | mac[2] << 16 | mac[1] << 8 | mac[0];
+    enet_config.mac_addr_high[0] = mac[idx][5] << 8 | mac[idx][4];
+    enet_config.mac_addr_low[0] = mac[idx][3] << 24 | mac[idx][2] << 16 | mac[idx][1] << 8 | mac[idx][0];
     enet_config.valid_max_count = 1;
 
     /* Set DMA PBL */
@@ -128,92 +139,83 @@ hpm_stat_t enet_init(ENET_Type *ptr)
     /* Set SARC */
     enet_config.sarc = enet_sarc_replace_mac0;
 
-#if defined(__ENABLE_ENET_RECEIVE_INTERRUPT) && __ENABLE_ENET_RECEIVE_INTERRUPT
-    /* Enable Enet IRQ */
-    board_enable_enet_irq(ptr);
-
-    /* Get the default interrupt config */
-    enet_get_default_interrupt_config(ptr, &int_config);
-#endif
-
     /* Initialize enet controller */
-    if (enet_controller_init(ptr, ENET_INF_TYPE, &desc, &enet_config, &int_config) != status_success) {
+    if (enet_controller_init(ptr, intf, &desc[idx], &enet_config, &int_config) != status_success) {
         return status_fail;
     }
-
-#if defined(__ENABLE_ENET_RECEIVE_INTERRUPT) && __ENABLE_ENET_RECEIVE_INTERRUPT
-    /* Disable LPI interrupt */
-    enet_disable_lpi_interrupt(ptr);
-#endif
 
     return status_success;
 }
 
 ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
 {
-    (void)netdev_index;
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (netdev_index == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
+#endif
+
+    if (netdev_index >= BOARD_NETDEV_COUNT) {
+        EC_LOG_ERR("Invalid netdev index: %d\n", netdev_index);
+        return NULL;
+    }
 
     /* Initialize GPIOs */
-    board_init_enet_pins(ENET);
+    board_init_enet_pins(ptr);
 
     /* Reset an enet PHY */
-    board_reset_enet_phy(ENET);
-#if defined(RGMII)
+    board_reset_enet_phy(ptr);
+
+#if defined(HPM_ENET_RGMII) && !defined(HPM_ENET_RMII)
     /* Set RGMII clock delay */
-    board_init_enet_rgmii_clock_delay(ENET);
-#else
+    board_init_enet_rgmii_clock_delay(ptr);
+#elif !defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
     /* Set RMII reference clock */
-    board_init_enet_rmii_reference_clock(ENET, BOARD_ENET_RMII_INT_REF_CLK);
+    board_init_enet_rmii_reference_clock(ptr, BOARD_ENET_RMII_INT_REF_CLK);
     EC_LOG_DBG("Reference Clock: %s\n", BOARD_ENET_RMII_INT_REF_CLK ? "Internal Clock" : "External Clock");
+#else
+    if (ptr == HPM_ENET0) {
+        /* Set RGMII clock delay */
+        board_init_enet_rgmii_clock_delay(ptr);
+    } else {
+        /* Set RMII reference clock */
+        board_init_enet_rmii_reference_clock(ptr, BOARD_ENET_RMII_INT_REF_CLK);
+        EC_LOG_DBG("Reference Clock: %s\n", BOARD_ENET_RMII_INT_REF_CLK ? "Internal Clock" : "External Clock");
+    }
 #endif
 
     /* Initialize MAC and DMA */
-    if (enet_init(ENET) == 0) {
+    if (enet_init(netdev_index) == 0) {
     } else {
         EC_LOG_DBG("Enet initialization fails !!!\n");
         while (1) {
         }
     }
 
-    ec_memcpy(g_netdev.mac_addr, mac, ETH_ALEN);
+    ec_memcpy(g_netdev[netdev_index].mac_addr, mac[netdev_index], ETH_ALEN);
 
     for (uint32_t i = 0; i < ENET_TX_BUFF_COUNT; i++) {
         for (uint8_t j = 0; j < 6; j++) { // dst MAC
-            EC_WRITE_U8(&tx_buff[i][j], 0xFF);
+            EC_WRITE_U8(&tx_buff[netdev_index][i][j], 0xFF);
         }
         for (uint8_t j = 0; j < 6; j++) { // src MAC
-            EC_WRITE_U8(&tx_buff[i][6 + j], mac[j]);
+            EC_WRITE_U8(&tx_buff[netdev_index][i][6 + j], mac[netdev_index][j]);
         }
-        EC_WRITE_U16(&tx_buff[i][12], ec_htons(0x88a4));
+        EC_WRITE_U16(&tx_buff[netdev_index][i][12], ec_htons(0x88a4));
     }
 
-    return &g_netdev;
-}
-
-void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
-{
-    (void)phydev;
-    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
-
-    enet_write_phy(ENET, phy_addr, regnum, val);
-}
-
-uint16_t ec_mdio_low_level_read(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum)
-{
-    (void)phydev;
-    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
-#if SDK_VERSION_NUMBER < 0x10C00
-    return enet_read_phy(ENET, phy_addr, regnum);
-#else
-    uint16_t val = 0;
-    enet_read_phy(ENET, phy_addr, regnum, &val);
-    return val;
-#endif
+    return &g_netdev[netdev_index];
 }
 
 void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *status)
 {
-    (void)netdev;
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (netdev->index == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
+#endif
 
     enet_line_speed_t line_speed = enet_line_speed_10mbps;
 
@@ -232,8 +234,8 @@ void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *st
             break;
     }
     if (status->link) {
-        enet_set_line_speed(ENET, line_speed);
-        enet_set_duplex_mode(ENET, status->duplex);
+        enet_set_line_speed(ptr, line_speed);
+        enet_set_duplex_mode(ptr, status->duplex);
     } else {
     }
 }
@@ -244,7 +246,7 @@ EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 
     __IO enet_tx_desc_t *dma_tx_desc;
 
-    dma_tx_desc = desc.tx_desc_list_cur;
+    dma_tx_desc = desc[netdev->index].tx_desc_list_cur;
 
     EC_ASSERT_MSG(dma_tx_desc->tdes0_bm.own == 0, "No free tx buffer available\n");
 
@@ -253,110 +255,100 @@ EC_FAST_CODE_SECTION uint8_t *ec_netdev_low_level_get_txbuf(ec_netdev_t *netdev)
 
 EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_t size)
 {
-    (void)netdev;
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (netdev->index == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
+#endif
 
     __IO enet_tx_desc_t *dma_tx_desc;
 
-    dma_tx_desc = desc.tx_desc_list_cur;
+    dma_tx_desc = desc[netdev->index].tx_desc_list_cur;
     if (dma_tx_desc->tdes0_bm.own != 0) {
         return -1;
     }
 
     /* Prepare transmit descriptors to give to DMA*/
-    enet_prepare_transmission_descriptors(ENET, &desc.tx_desc_list_cur, size + 4, desc.tx_buff_cfg.size);
+    enet_prepare_transmission_descriptors(ptr, &desc[netdev->index].tx_desc_list_cur, size + 4, desc[netdev->index].tx_buff_cfg.size);
 
     return 0;
 }
 
-EC_FAST_CODE_SECTION int ec_netdev_low_level_input(ec_netdev_t *netdev)
+EC_FAST_CODE_SECTION int ec_netdev_low_level_get_rxbuf(ec_netdev_t *netdev, uint8_t **buffer, uint32_t *size)
 {
-    uint32_t len;
-    uint8_t *buffer;
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (netdev->index == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
+#endif
+
     enet_frame_t frame = { 0 };
-    enet_rx_desc_t *dma_rx_desc;
-    uint32_t i = 0;
-    int ret = 0;
-
     /* Check and get a received frame */
-    if (enet_check_received_frame(&desc.rx_desc_list_cur, &desc.rx_frame_info) == 1) {
-        frame = enet_get_received_frame(&desc.rx_desc_list_cur, &desc.rx_frame_info);
+    if (enet_check_received_frame(&desc[netdev->index].rx_desc_list_cur, &desc[netdev->index].rx_frame_info) == 1) {
+        frame = enet_get_received_frame(&desc[netdev->index].rx_desc_list_cur, &desc[netdev->index].rx_frame_info);
     }
+    if (frame.length > 0) {
+        *buffer = (uint8_t *)sys_address_to_core_local_mem(BOARD_RUNNING_CORE, (uint32_t)frame.buffer);
+        *size = frame.length;
+        return 0;
+    } else {
+        enet_rx_resume(ptr);
+        return -1;
+    }
+}
 
-    /* Obtain the size of the packet and put it into the "len" variable. */
-    len = frame.length;
-    buffer = (uint8_t *)sys_address_to_core_local_mem(BOARD_RUNNING_CORE, (uint32_t)frame.buffer);
+EC_FAST_CODE_SECTION void ec_netdev_low_level_release_rxbuf(ec_netdev_t *netdev)
+{
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (netdev->index == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
+#endif
 
-    if (len > 0) {
-        ec_netdev_receive(netdev, buffer, len);
-        /* Release descriptors to DMA */
-        dma_rx_desc = frame.rx_desc;
-
-        /* Set Own bit in Rx descriptors: gives the buffers back to DMA */
-        for (i = 0; i < desc.rx_frame_info.seg_count; i++) {
+    /* Release the current RX buffer back to DMA */
+    if (desc[netdev->index].rx_frame_info.seg_count > 0) {
+        enet_rx_desc_t *dma_rx_desc = desc[netdev->index].rx_frame_info.fs_rx_desc;
+        for (uint32_t i = 0; i < desc[netdev->index].rx_frame_info.seg_count; i++) {
             dma_rx_desc->rdes0_bm.own = 1;
             dma_rx_desc = (enet_rx_desc_t *)(dma_rx_desc->rdes3_bm.next_desc);
         }
-
-        /* Clear Segment_Count */
-        desc.rx_frame_info.seg_count = 0;
-    } else {
-        ret = -1;
+        desc[netdev->index].rx_frame_info.seg_count = 0;
     }
-
-    /* Resume Rx Process */
-    enet_rx_resume(ENET);
-    return ret;
+    enet_rx_resume(ptr);
 }
 
-#if defined(__ENABLE_ENET_RECEIVE_INTERRUPT) && __ENABLE_ENET_RECEIVE_INTERRUPT
-void isr_enet(ENET_Type *ptr)
+void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
 {
-    uint32_t status;
-    uint32_t rxgbfrmis;
-    uint32_t intr_status;
-
-    status = ptr->DMA_STATUS;
-    rxgbfrmis = ptr->MMC_INTR_RX;
-    intr_status = ptr->INTR_STATUS;
-
-    if (ENET_DMA_STATUS_GLPII_GET(status)) {
-        /* read LPI_CSR to clear interrupt status */
-        ptr->LPI_CSR;
-    }
-
-    if (ENET_INTR_STATUS_RGSMIIIS_GET(intr_status)) {
-        /* read XMII_CSR to clear interrupt status */
-        ptr->XMII_CSR;
-    }
-
-    if (ENET_DMA_STATUS_RI_GET(status)) {
-        ptr->DMA_STATUS |= ENET_DMA_STATUS_RI_MASK;
-        while (ec_netdev_low_level_input(&g_netdev) == 0) {
-        }
-    }
-
-    if (ENET_MMC_INTR_RX_RXCTRLFIS_GET(rxgbfrmis)) {
-        ptr->RXFRAMECOUNT_GB;
-    }
-}
-
-#ifdef HPM_ENET0_BASE
-void isr_enet0(void)
-{
-    isr_enet(ENET);
-}
-SDK_DECLARE_EXT_ISR_M(IRQn_ENET0, isr_enet0)
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (phydev->phy_port == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
 #endif
 
-#ifdef HPM_ENET1_BASE
-void isr_enet1(void)
-{
-    isr_enet(ENET);
+    enet_write_phy(ptr, phy_addr, regnum, val);
 }
-SDK_DECLARE_EXT_ISR_M(IRQn_ENET1, isr_enet1)
+
+uint16_t ec_mdio_low_level_read(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum)
+{
+    ENET_Type *ptr;
+#if defined(HPM_ENET_RGMII) && defined(HPM_ENET_RMII)
+    ptr = (phydev->phy_port == 0) ? HPM_ENET0 : HPM_ENET1;
+#else
+    ptr = HPM_ENET0;
 #endif
 
+#if SDK_VERSION_NUMBER < 0x10C00
+    return enet_read_phy(ptr, phy_addr, regnum);
+#else
+    uint16_t val = 0;
+    enet_read_phy(ptr, phy_addr, regnum, &val);
+    return val;
 #endif
+}
 
 #include "hpm_gptmr_drv.h"
 
@@ -367,7 +359,7 @@ SDK_DECLARE_EXT_ISR_M(IRQn_ENET1, isr_enet1)
 
 static ec_htimer_cb g_ec_htimer_cb = NULL;
 static void *g_ec_htimer_arg = NULL;
-static uint32_t g_timer_reload_us_div = 0;
+static double g_timer_tick_ns;
 
 void ec_htimer_isr(void)
 {
@@ -390,9 +382,9 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
 
     clock_add_to_group(EC_HTIMER_CLK_NAME, 0);
     gptmr_freq = clock_get_frequency(EC_HTIMER_CLK_NAME);
-    g_timer_reload_us_div = gptmr_freq / 1000000;
+    g_timer_tick_ns = 1000000000.0 / gptmr_freq;
 
-    config.reload = g_timer_reload_us_div * us;
+    config.reload = (uint64_t)gptmr_freq * us / 1000000;
     gptmr_stop_counter(EC_HTIMER, EC_HTIMER_CH);
     gptmr_channel_config(EC_HTIMER, EC_HTIMER_CH, &config, false);
     gptmr_enable_irq(EC_HTIMER, GPTMR_CH_RLD_IRQ_MASK(EC_HTIMER_CH));
@@ -408,9 +400,10 @@ void ec_htimer_stop(void)
     intc_m_disable_irq(EC_HTIMER_IRQ);
 }
 
-EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
+EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t ns)
 {
-    gptmr_channel_config_update_reload(EC_HTIMER, EC_HTIMER_CH, us * g_timer_reload_us_div);
+    uint32_t ticks = ns / g_timer_tick_ns + 0.5;
+    gptmr_channel_config_update_reload(EC_HTIMER, EC_HTIMER_CH, ticks);
 }
 
 #ifndef CONFIG_EC_TIMESTAMP_CUSTOM

@@ -5,10 +5,10 @@
  */
 #include "ec_master.h"
 
-extern void ec_master_receive(ec_master_t *master,
-                                        uint8_t netdev_index,
-                                        const uint8_t *frame_data,
-                                        size_t size);
+void ec_master_receive_datagrams(ec_master_t *master,
+                                 uint8_t netdev_idx,
+                                 const uint8_t *frame_data,
+                                 size_t size);
 
 /** List of intervals for statistics [s].
  */
@@ -67,7 +67,6 @@ ec_netdev_t *ec_netdev_init(uint8_t netdev_index)
         netdev->index = netdev_index;
         netdev->tx_frame_index = 0;
         netdev->link_state = false;
-
         snprintf(netdev->name, sizeof(netdev->name), "ec-netdev%d(%s)", netdev_index, netdev_index == 0 ? "main" : "backup");
 #ifndef CONFIG_EC_PHY_CUSTOM
         struct chry_phy_config config;
@@ -138,13 +137,20 @@ EC_FAST_CODE_SECTION int ec_netdev_send(ec_netdev_t *netdev, uint32_t size)
     }
 }
 
-EC_FAST_CODE_SECTION void ec_netdev_receive(ec_netdev_t *netdev, uint8_t *frame, uint32_t size)
+EC_FAST_CODE_SECTION void ec_netdev_receive(ec_netdev_t *netdev)
 {
-    const uint8_t *ec_data = frame + ETH_HLEN;
-    uint32_t ec_size = size - ETH_HLEN;
+    uint8_t *frame;
+    uint32_t size;
 
-    netdev->stats.rx_count++;
-    netdev->stats.rx_bytes += size;
+    while (ec_netdev_low_level_get_rxbuf(netdev, &frame, &size) == 0) {
+        const uint8_t *ec_data = frame + ETH_HLEN;
+        uint32_t ec_size = size - ETH_HLEN;
 
-    ec_master_receive(netdev->master, netdev->index, ec_data, ec_size);
+        netdev->stats.rx_count++;
+        netdev->stats.rx_bytes += size;
+
+        ec_master_receive_datagrams(netdev->master, netdev->index, ec_data, ec_size);
+
+        ec_netdev_low_level_release_rxbuf(netdev);
+    }
 }

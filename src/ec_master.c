@@ -5,7 +5,9 @@
  */
 #include "ec_master.h"
 
-#define EC_DATAGRAM_TIMEOUT_NS (50 * 1000 * 1000ULL) // 50ms
+#define EC_DATAGRAM_TIMEOUT_NS      (50 * 1000 * 1000ULL) // 50ms
+#define EC_NONPERIOD_POLL_BUDGET_NS (1 * 1000 * 1000ULL)  // 1ms
+#define EC_LINK_POLL_INTERVAL_MS    100
 
 void ec_master_period_process(void *arg);
 
@@ -245,11 +247,17 @@ EC_FAST_CODE_SECTION void ec_master_send(ec_master_t *master)
 {
     ec_datagram_t *datagram, *n;
     uint8_t netdev_idx;
+    uint64_t start_time;
+    uint32_t exec_ns;
+
+    start_time = ec_timestamp_get_time_ns();
 
     // update netdev statistics
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS;
          netdev_idx++) {
-        ec_netdev_update_stats(master->netdev[netdev_idx]);
+        if (master->netdev[netdev_idx]) {
+            ec_netdev_update_stats(master->netdev[netdev_idx]);
+        }
     }
 
     // dequeue all datagrams that timed out
@@ -266,6 +274,10 @@ EC_FAST_CODE_SECTION void ec_master_send(ec_master_t *master)
     }
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+        if (!master->netdev[netdev_idx]) {
+            continue;
+        }
+
         if (!master->netdev[netdev_idx]->link_state) {
             // link is down, no datagram can be sent
             ec_dlist_for_each_entry_safe(datagram, n, &master->datagram_queue, queue)
@@ -276,10 +288,6 @@ EC_FAST_CODE_SECTION void ec_master_send(ec_master_t *master)
                 }
             }
 
-            if (!master->netdev[netdev_idx]) {
-                continue;
-            }
-
             // clear frame statistics
             memset(&master->netdev[netdev_idx]->stats, 0, sizeof(ec_netdev_stats_t));
             continue;
@@ -288,54 +296,31 @@ EC_FAST_CODE_SECTION void ec_master_send(ec_master_t *master)
         // send frames
         ec_master_send_datagrams(master, netdev_idx);
     }
+
+    exec_ns = ec_timestamp_get_time_ns() - start_time;
+    if (master->perf_enable) {
+        master->min_send_exec_ns = MIN(exec_ns, master->min_send_exec_ns);
+        master->max_send_exec_ns = MAX(exec_ns, master->max_send_exec_ns);
+        master->total_send_exec_ns += exec_ns;
+        master->send_exec_count++;
+    }
 }
 
-EC_FAST_CODE_SECTION void ec_master_receive(ec_master_t *master,
-                                            uint8_t netdev_idx,
-                                            const uint8_t *frame_data,
-                                            size_t size)
+EC_FAST_CODE_SECTION void ec_master_receive(ec_master_t *master)
 {
-    ec_slave_t *slave;
     uint64_t start_time;
     uint32_t exec_ns;
 
     start_time = ec_timestamp_get_time_ns();
 
-    ec_master_receive_datagrams(master, netdev_idx, frame_data, size);
-
-    if (master->phase != EC_OPERATION) {
-        return;
-    }
-
-    master->actual_working_counter = 0;
-#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
-    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
-        for (uint32_t i = 0; i < master->slave_count; i++) {
-            slave = &master->slaves[i];
-
-            if (slave->config && slave->config->pdo_callback) {
-                slave->config->pdo_callback(slave,
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
-            }
+    for (uint8_t netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
+        if (!master->netdev[netdev_idx] || !master->netdev[netdev_idx]->link_state) {
+            continue;
         }
-        master->actual_working_counter = master->pdo_datagram.working_counter;
-    }
-#else
-    for (uint32_t i = 0; i < master->slave_count; i++) {
-        slave = &master->slaves[i];
 
-        if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
-            if (slave->config && slave->config->pdo_callback) {
-                slave->config->pdo_callback(slave,
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
-                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
-            }
-            master->actual_working_counter += slave->pdo_datagram.working_counter;
-            slave->actual_working_counter = slave->pdo_datagram.working_counter;
-        }
+        ec_netdev_receive(master->netdev[netdev_idx]);
     }
-#endif
+
     exec_ns = ec_timestamp_get_time_ns() - start_time;
     if (master->perf_enable) {
         master->min_recv_exec_ns = MIN(exec_ns, master->min_recv_exec_ns);
@@ -351,7 +336,9 @@ static void ec_netdev_linkpoll_timer(void *argument)
     uint8_t netdev_idx;
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-        ec_netdev_poll_link_state(master->netdev[netdev_idx]);
+        if (master->netdev[netdev_idx]) {
+            ec_netdev_poll_link_state(master->netdev[netdev_idx]);
+        }
     }
 }
 
@@ -360,6 +347,7 @@ static int ec_master_enter_idle(ec_master_t *master)
     master->phase = EC_IDLE;
     master->nonperiod_suspend = false;
 
+    EC_LOG_INFO("Master %u entering idle phase.\n", master->index);
     ec_osal_thread_resume(master->nonperiod_thread);
 
     return 0;
@@ -367,6 +355,7 @@ static int ec_master_enter_idle(ec_master_t *master)
 
 static void ec_master_exit_idle(ec_master_t *master)
 {
+    EC_LOG_INFO("Master %u exiting idle phase.\n", master->index);
     master->nonperiod_suspend = false;
     ec_osal_thread_suspend(master->nonperiod_thread);
 }
@@ -375,12 +364,26 @@ static void ec_master_nonperiod_thread(void *argument)
 {
     ec_master_t *master = (ec_master_t *)argument;
     uintptr_t flags;
+    uint64_t poll_start;
+    bool queue_pending;
 
     while (1) {
-        ec_osal_sem_take(master->nonperiod_sem, CONFIG_EC_NONPERIOD_INTERVAL_MS);
-        flags = ec_osal_enter_critical_section();
-        ec_master_send(master);
-        ec_osal_leave_critical_section(flags);
+        ec_osal_sem_take(master->nonperiod_sem, EC_OSAL_WAITING_FOREVER);
+        poll_start = jiffies;
+
+        do {
+            flags = ec_osal_enter_critical_section();
+            ec_master_receive(master);
+            ec_master_send(master);
+            queue_pending = !ec_dlist_isempty(&master->datagram_queue);
+            ec_osal_leave_critical_section(flags);
+
+            if (queue_pending && (jiffies - poll_start >= EC_NONPERIOD_POLL_BUDGET_NS)) {
+                // Block briefly so link polling and lower-priority threads can run.
+                ec_osal_msleep(1);
+                poll_start = jiffies;
+            }
+        } while (queue_pending);
 
         if (master->nonperiod_suspend) {
             ec_master_exit_idle(master);
@@ -442,7 +445,7 @@ int ec_master_init(ec_master_t *master, uint8_t master_index)
         return -1;
     }
 
-    master->linkdetect_timer = ec_osal_timer_create("ec_linkdetect", 1000, ec_netdev_linkpoll_timer, master, true);
+    master->linkdetect_timer = ec_osal_timer_create("ec_linkdetect", EC_LINK_POLL_INTERVAL_MS, ec_netdev_linkpoll_timer, master, true);
     if (!master->linkdetect_timer) {
         return -1;
     }
@@ -467,14 +470,16 @@ int ec_master_start(ec_master_t *master)
     uint8_t netdev_idx;
 
     EC_ASSERT_MSG(master->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", master->cycle_time);
-    EC_ASSERT_MSG(master->cycle_time >= master->shift_time, "Shift time %u ns is larger than cycle time %u ns.\n", master->shift_time, master->cycle_time);
+    EC_ASSERT_MSG((int64_t)master->shift_time >= -(int64_t)master->cycle_time &&
+                      (int64_t)master->shift_time <= master->cycle_time,
+                  "Shift time %d ns is outside +/- cycle time %u ns.\n", master->shift_time, master->cycle_time);
 
     if (master->started) {
         return 0;
     }
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
-        if (master->netdev[netdev_idx] == NULL || master->netdev[netdev_idx]->link_state == 0) {
+        if (!master->netdev[netdev_idx] || !master->netdev[netdev_idx]->link_state) {
             return -EC_ERR_INVAL;
         }
     }
@@ -699,14 +704,11 @@ EC_FAST_CODE_SECTION void ec_master_dc_sync_with_pi(ec_master_t *master, uint64_
 EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
 {
     ec_master_t *master = (ec_master_t *)arg;
-    uint64_t dc_ref_systime = 0;
-#ifdef CONFIG_EC_PDO_MULTI_DOMAIN
     ec_slave_t *slave;
-#endif
-    int32_t offsettime = 0;
     uint64_t start_time;
     uint32_t period_ns;
-    uint32_t exec_ns;
+    uint64_t dc_ref_systime = 0;
+    int32_t offsettime = 0;
 
     if (master->phase != EC_OPERATION) {
         return;
@@ -718,25 +720,67 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
         master->dc_start_time = start_time;
     }
 
-    if (master->dc_ref_clock) {
-        if (master->dc_sync_with_dc_ref_enable) {
-            if (master->dc_all_sync_datagram.state == EC_DATAGRAM_RECEIVED) {
-                dc_ref_systime = EC_READ_U64(master->dc_all_sync_datagram.data) - master->dc_ref_clock->transmission_delay;
+    ec_master_receive(master);
 
-                ec_master_dc_sync_with_pi(master, dc_ref_systime, &offsettime);
+    if (master->dc_ref_clock &&
+        master->dc_sync_with_dc_ref_enable &&
+        master->dc_sync0_valid &&
+        master->dc_all_sync_datagram.state == EC_DATAGRAM_RECEIVED &&
+        master->dc_all_sync_datagram.working_counter > 0) {
+        dc_ref_systime = EC_READ_U64(master->dc_all_sync_datagram.data) - master->dc_ref_clock->transmission_delay;
 
-                ec_htimer_update(master->cycle_time / 1000 + offsettime / 1000);
+        ec_master_dc_sync_with_pi(master, dc_ref_systime, &offsettime);
+
+        int64_t timer_period_ns = (int64_t)master->cycle_time + offsettime;
+        if (timer_period_ns < 1) {
+            timer_period_ns = 1;
+        } else if (timer_period_ns > UINT32_MAX) {
+            timer_period_ns = UINT32_MAX;
+        }
+        ec_htimer_update((uint32_t)timer_period_ns);
+    } else if (master->dc_sync_with_dc_ref_enable && !master->dc_sync0_valid) {
+        ec_htimer_update(master->cycle_time);
+    }
+
+    master->actual_working_counter = 0;
+#ifndef CONFIG_EC_PDO_MULTI_DOMAIN
+    if (master->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+        for (uint32_t i = 0; i < master->slave_count; i++) {
+            slave = &master->slaves[i];
+
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
             }
-        } else {
-            EC_WRITE_U32(master->dc_ref_sync_datagram.data, ec_timestamp_get_time_ns() & 0xffffffff);
+        }
+        master->actual_working_counter = master->pdo_datagram.working_counter;
+    }
+#else
+    for (uint32_t i = 0; i < master->slave_count; i++) {
+        slave = &master->slaves[i];
+
+        if (slave->pdo_datagram.state == EC_DATAGRAM_RECEIVED) {
+            if (slave->config && slave->config->pdo_callback) {
+                slave->config->pdo_callback(slave,
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address],
+                                            (uint8_t *)&master->pdo_buffer[EC_NETDEV_MAIN][slave->logical_start_address + slave->odata_size]);
+            }
+            master->actual_working_counter += slave->pdo_datagram.working_counter;
+            slave->actual_working_counter = slave->pdo_datagram.working_counter;
+        }
+    }
+#endif
+
+    if (master->dc_ref_clock) {
+        if (!master->dc_sync_with_dc_ref_enable) {
+            uint64_t sync_time = ec_timestamp_get_time_ns();
+            EC_WRITE_U32(master->dc_ref_sync_datagram.data, sync_time & 0xffffffff);
             if (master->dc_ref_clock->base_dc_range == EC_DC_64) {
-                EC_WRITE_U32(master->dc_ref_sync_datagram.data + 4, (uint32_t)(ec_timestamp_get_time_ns() >> 32));
+                EC_WRITE_U32(master->dc_ref_sync_datagram.data + 4, (uint32_t)(sync_time >> 32));
             }
             ec_master_queue_datagram(master, &master->dc_ref_sync_datagram);
         }
-    }
-
-    if (master->dc_ref_clock) {
         ec_datagram_zero(&master->dc_all_sync_datagram);
         ec_master_queue_datagram(master, &master->dc_all_sync_datagram);
     }
@@ -752,7 +796,6 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
     ec_master_send(master);
 
     period_ns = start_time - master->last_start_time;
-    exec_ns = ec_timestamp_get_time_ns() - start_time;
     master->last_start_time = start_time;
 
     if (master->perf_enable) {
@@ -760,11 +803,6 @@ EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)
         master->max_period_ns = MAX(period_ns, master->max_period_ns);
         master->total_period_ns += period_ns;
         master->period_count++;
-
-        master->min_send_exec_ns = MIN(exec_ns, master->min_send_exec_ns);
-        master->max_send_exec_ns = MAX(exec_ns, master->max_send_exec_ns);
-        master->total_send_exec_ns += exec_ns;
-        master->send_exec_count++;
 
         master->min_offset_ns = MIN(offsettime, master->min_offset_ns);
         master->max_offset_ns = MAX(offsettime, master->max_offset_ns);

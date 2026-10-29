@@ -18,8 +18,9 @@
 #error "Please set USE_HAL_TIM_REGISTER_CALLBACKS to 1 in stm32h7xx_hal_conf.h"
 #endif
 
-#define ETH_RX_BUFFER_SIZE 1536U
-#define ETH_TX_BUFFER_SIZE 1536U
+#define ETH_RX_BUFFER_SIZE  1536U
+#define ETH_TX_BUFFER_SIZE  1536U
+#define ETH_RX_BUFFER_COUNT ETH_RX_DESC_CNT
 
 /* Global Ethernet handle*/
 ETH_HandleTypeDef EthHandle;
@@ -33,7 +34,7 @@ ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptor
 ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
 #pragma section = ".TRx_PoolSection"
-__attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_DESC_CNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
+__attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_BUFFER_COUNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
 #pragma section = ".TRx_PoolSection"
 __attribute__((aligned(32))) uint8_t tx_buffer[ETH_TX_DESC_CNT][ETH_TX_BUFFER_SIZE]; /* Ethernet Transmit Buffer */
 
@@ -41,41 +42,18 @@ __attribute__((aligned(32))) uint8_t tx_buffer[ETH_TX_DESC_CNT][ETH_TX_BUFFER_SI
 __attribute__((section(".RxDescripSection"))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
 __attribute__((section(".TxDescripSection"))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
-__attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_DESC_CNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
+__attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_BUFFER_COUNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
 __attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t tx_buffer[ETH_TX_DESC_CNT][ETH_TX_BUFFER_SIZE]; /* Ethernet Transmit Buffer */
 
 #elif defined ( __GNUC__ ) /* GNU Compiler */
 __attribute__((section(".RxDescripSection"))) ETH_DMADescTypeDef  DMARxDscrTab[ETH_RX_DESC_CNT]; /* Ethernet Rx DMA Descriptors */
 __attribute__((section(".TxDescripSection"))) ETH_DMADescTypeDef  DMATxDscrTab[ETH_TX_DESC_CNT]; /* Ethernet Tx DMA Descriptors */
 
-__attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_DESC_CNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
+__attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t rx_buffer[ETH_RX_BUFFER_COUNT][ETH_RX_BUFFER_SIZE]; /* Ethernet Receive Buffer */
 __attribute__((section(".TRx_PoolSection"))) __attribute__((aligned(32))) uint8_t tx_buffer[ETH_TX_DESC_CNT][ETH_TX_BUFFER_SIZE]; /* Ethernet Transmit Buffer */
 
 #endif
 // clang-format on
-
-static uint32_t g_devinuse = 0;
-
-static uint8_t *ec_master_enet_buffer_alloc(void)
-{
-    uint8_t devno;
-
-    for (devno = 0; devno < ETH_RX_DESC_CNT; devno++) {
-        if ((g_devinuse & (1U << devno)) == 0) {
-            g_devinuse |= (1U << devno);
-            return rx_buffer[devno];
-        }
-    }
-    return NULL;
-}
-
-static void ec_master_enet_buffer_free(uint8_t *buffer)
-{
-    uint8_t devno;
-
-    devno = (buffer - &rx_buffer[0][0]) / ETH_RX_BUFFER_SIZE;
-    g_devinuse &= ~(1U << devno);
-}
 
 ec_netdev_t g_netdev;
 
@@ -148,6 +126,14 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
         while (1) {
         }
     }
+
+    SCB_CleanInvalidateDCache_by_Addr((uint32_t *)rx_buffer, sizeof(rx_buffer));
+    for (uint32_t i = 0; i < ETH_RX_DESC_CNT; i++) {
+        if (HAL_ETH_DescAssignMemory(&EthHandle, i, rx_buffer[i], NULL) != HAL_OK) {
+            EC_LOG_ERR("HAL_ETH_DescAssignMemory failed\n");
+            return NULL;
+        }
+    }
     HAL_ETH_SetMDIOClockRange(&EthHandle);
 
     memset(&TxConfig, 0, sizeof(ETH_TxPacketConfig));
@@ -170,22 +156,6 @@ ec_netdev_t *ec_netdev_low_level_init(uint8_t netdev_index)
     return &g_netdev;
 }
 
-void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
-{
-    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
-    HAL_ETH_WritePHYRegister(&EthHandle, phy_addr, regnum, val);
-}
-
-uint16_t ec_mdio_low_level_read(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum)
-{
-    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
-    uint32_t pRegVal = 0;
-
-    HAL_ETH_ReadPHYRegister(&EthHandle, phy_addr, regnum, &pRegVal);
-
-    return pRegVal;
-}
-
 void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *status)
 {
     ETH_MACConfigTypeDef MACConf = { 0 };
@@ -196,9 +166,9 @@ void ec_netdev_low_level_link_up(ec_netdev_t *netdev, struct chry_phy_status *st
         MACConf.DuplexMode = ETH_FULLDUPLEX_MODE;
         MACConf.Speed = ETH_SPEED_100M;
         HAL_ETH_SetMACConfig(&EthHandle, &MACConf);
-        HAL_ETH_Start_IT(&EthHandle);
+        HAL_ETH_Start(&EthHandle);
     } else {
-        HAL_ETH_Stop_IT(&EthHandle);
+        HAL_ETH_Stop(&EthHandle);
     }
 }
 
@@ -220,7 +190,6 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_
 
     TxConfig.Length = size;
     TxConfig.TxBuffer = Txbuffer;
-    TxConfig.pData = NULL;
 
     SCB_CleanDCache_by_Addr((uint32_t *)tx_buffer[netdev->tx_frame_index], size);
     status = HAL_ETH_Transmit(&EthHandle, &TxConfig, 20);
@@ -233,8 +202,49 @@ EC_FAST_CODE_SECTION int ec_netdev_low_level_output(ec_netdev_t *netdev, uint32_
     return 0;
 }
 
+EC_FAST_CODE_SECTION int ec_netdev_low_level_get_rxbuf(ec_netdev_t *netdev, uint8_t **buffer, uint32_t *size)
+{
+    ETH_BufferTypeDef RxBuffer = { 0 };
+    uint32_t length = 0;
+
+    if (HAL_ETH_IsRxDataAvailable(&EthHandle) == 0) {
+        return -1;
+    }
+
+    HAL_ETH_GetRxDataBuffer(&EthHandle, &RxBuffer);
+    HAL_ETH_GetRxDataLength(&EthHandle, &length);
+
+    /* Each RX buffer is cache-line aligned and remains owned by the CPU until release. */
+    SCB_InvalidateDCache_by_Addr((uint32_t *)RxBuffer.buffer, (length + 31U) & ~31U);
+    *buffer = RxBuffer.buffer;
+    *size = length;
+    return 0;
+}
+
+EC_FAST_CODE_SECTION void ec_netdev_low_level_release_rxbuf(ec_netdev_t *netdev)
+{
+    HAL_ETH_BuildRxDescriptors(&EthHandle);
+}
+
+void ec_mdio_low_level_write(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum, uint16_t val)
+{
+    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
+    HAL_ETH_WritePHYRegister(&EthHandle, phy_addr, regnum, val);
+}
+
+uint16_t ec_mdio_low_level_read(struct chry_phy_device *phydev, uint16_t phy_addr, uint16_t regnum)
+{
+    //ec_netdev_t *netdev = (ec_netdev_t *)phydev->user_data;
+    uint32_t pRegVal = 0;
+
+    HAL_ETH_ReadPHYRegister(&EthHandle, phy_addr, regnum, &pRegVal);
+
+    return pRegVal;
+}
+
 static ec_htimer_cb g_ec_htimer_cb = NULL;
 static void *g_ec_htimer_arg = NULL;
+static double g_timer_tick_ns;
 
 static TIM_HandleTypeDef ECTimHandle;
 
@@ -274,6 +284,7 @@ void ec_htimer_start(uint32_t us, ec_htimer_cb cb, void *arg)
 
     /* Compute the prescaler value to have TIM7 counter clock equal to 1MHz */
     uwPrescalerValue = (uint32_t)((uwTimclock / 1000000U) - 1U);
+    g_timer_tick_ns = 1000000000.0 * (uwPrescalerValue + 1U) / uwTimclock;
 
     /* Initialize TIM7 */
     ECTimHandle.Instance = TIM7;
@@ -305,9 +316,10 @@ void ec_htimer_stop(void)
     HAL_TIM_Base_Stop_IT(&ECTimHandle);
 }
 
-EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t us)
+EC_FAST_CODE_SECTION void ec_htimer_update(uint32_t ns)
 {
-    TIM7->ARR = us - 1U;
+    uint32_t ticks = ns / g_timer_tick_ns + 0.5;
+    TIM7->ARR = ticks - 1U;
 }
 
 #ifndef CONFIG_EC_TIMESTAMP_CUSTOM
@@ -318,39 +330,9 @@ uint32_t ec_get_cpu_frequency(void)
 }
 #endif
 
-void HAL_ETH_RxAllocateCallback(uint8_t **buff)
-{
-    uint8_t *p;
-
-    p = ec_master_enet_buffer_alloc();
-    if (p) {
-        *buff = p;
-    } else {
-        *buff = NULL;
-    }
-}
-
-void HAL_ETH_RxLinkCallback(void **pStart, void **pEnd, uint8_t *buff, uint16_t Length)
-{
-    /* Invalidate data cache because Rx DMA's writing to physical memory makes it stale. */
-
-    *pStart = buff;
-    *pEnd = buff + Length;
-    SCB_InvalidateDCache_by_Addr((uint32_t *)buff, Length);
-
-    ec_netdev_receive(&g_netdev, buff, Length);
-    ec_master_enet_buffer_free(buff);
-}
-
-void HAL_ETH_TxFreeCallback(uint32_t *buff)
-{
-}
-
 void HAL_ETH_RxCpltCallback(ETH_HandleTypeDef *heth)
 {
-    uint8_t *buffer = NULL;
-
-    HAL_ETH_ReadData(&EthHandle, (void **)&buffer);
+    /* RX is polled by ec_master_receive(); do not consume descriptors here. */
 }
 
 /**
