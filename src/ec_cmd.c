@@ -238,9 +238,7 @@ static void ec_cmd_show_slave_detail(ec_master_t *master, uint32_t slave_idx)
 
     slave = &master->slaves[slave_idx];
 
-    ec_osal_mutex_take(master->scan_lock);
     memcpy(&slave_data, slave, sizeof(ec_slave_t));
-    ec_osal_mutex_give(master->scan_lock);
 
     EC_LOG_RAW("=== Master %d, Slave %d ===\n", master->index, slave_idx);
 
@@ -496,9 +494,10 @@ static int parse_hex_string(const char *hex_str, uint8_t *output, uint32_t max_l
 int ethercat(int argc, const char **argv)
 {
     int ret;
+    bool need_lock;
 
     if (global_cmd_master == NULL) {
-        EC_LOG_RAW("No master configured\n");
+        EC_LOG_ERR("Master not initialized\n");
         return -1;
     }
 
@@ -507,19 +506,37 @@ int ethercat(int argc, const char **argv)
         return -1;
     }
 
+    need_lock = strcmp(argv[1], "start") != 0 && strcmp(argv[1], "stop") != 0;
+    if (need_lock) {
+        ec_osal_mutex_take(global_cmd_master->scan_lock);
+    }
+
     if (strcmp(argv[1], "help") == 0) {
         ec_master_cmd_show_help();
-        return 0;
+        ret = 0;
+        goto out;
     } else if (strcmp(argv[1], "pdo_read") == 0) {
-        return ec_master_cmd_pdo_read(argc, argv);
-    } else if (strcmp(argv[1], "start") == 0) {
+        ret = ec_master_cmd_pdo_read(argc, argv);
+        goto out;
+    } else if (strcmp(argv[1], "start") == 0 && argc >= 3) {
         static ec_slave_config_t slave_config[32];
         uint8_t motor_mode;
+
+        if (global_cmd_master->started) {
+            ret = 0;
+            goto out;
+        }
 
         if (argc == 4) {
             motor_mode = atoi(argv[3]);
         } else {
             motor_mode = 0;
+        }
+
+        if(global_cmd_master->slave_count > 32) {
+            EC_LOG_ERR("Slave count exceeds maximum supported by command interface (32)\n");
+            ret = -1;
+            goto out;
         }
 
         for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
@@ -533,7 +550,8 @@ int ethercat(int argc, const char **argv)
                 EC_LOG_ERR("Failed to find slave sync info: vendor_id=0x%08x, product_code=0x%08x\n",
                            global_cmd_master->slaves[i].sii.vendor_id,
                            global_cmd_master->slaves[i].sii.product_code);
-                return -1;
+                ret = -1;
+                goto out;
             }
 
             slave_config[i].dc_assign_activate = 0x300;
@@ -550,24 +568,34 @@ int ethercat(int argc, const char **argv)
         global_cmd_master->cycle_time = atoi(argv[2]) * 1000;       // cycle time in ns
         global_cmd_master->shift_time = global_cmd_master->cycle_time * 0.2; // master send phase: 20% of a cycle before SYNC0
         global_cmd_master->dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
-        ec_master_start(global_cmd_master);
-        return 0;
+        ret = ec_master_start(global_cmd_master);
+        if (ret != 0) {
+            EC_LOG_ERR("Failed to start master: %d\n", ret);
+            ret = -1;
+            goto out;
+        }
+        ret = 0;
+        goto out;
     } else if (strcmp(argv[1], "stop") == 0) {
         ec_master_stop(global_cmd_master);
-        return 0;
+        ret = 0;
+        goto out;
     } else if (strcmp(argv[1], "master") == 0) {
         ec_master_cmd_master(global_cmd_master);
-        return 0;
+        ret = 0;
+        goto out;
     } else if (strcmp(argv[1], "rescan") == 0) {
         global_cmd_master->rescan_request = true;
-        return 0;
+        ret = 0;
+        goto out;
     } else if (strcmp(argv[1], "slaves") == 0) {
         // ethercat slaves
         if (argc == 2) {
             for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
                 ec_cmd_show_slave_simple(global_cmd_master, i);
             }
-            return 0;
+            ret = 0;
+            goto out;
         } else if (argc >= 4 && strcmp(argv[2], "-p") == 0) {
             // ethercat slaves -p [x] [-v]
             int show_detail = 0;
@@ -583,14 +611,18 @@ int ethercat(int argc, const char **argv)
                 ec_cmd_show_slave_simple(global_cmd_master, atoi(argv[3]));
             }
 
-            return 0;
+            ret = 0;
+
+            goto out;
         } else if (argc == 3 && strcmp(argv[2], "-v") == 0) {
             // ethercat slaves -v
             for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
                 ec_cmd_show_slave_detail(global_cmd_master, i);
             }
 
-            return 0;
+            ret = 0;
+
+            goto out;
         } else {
         }
     } else if (strcmp(argv[1], "pdos") == 0) {
@@ -599,11 +631,13 @@ int ethercat(int argc, const char **argv)
             for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
                 ec_cmd_show_slave_pdos(global_cmd_master, i);
             }
-            return 0;
+            ret = 0;
+            goto out;
         } else if (argc == 4 && strcmp(argv[2], "-p") == 0) {
             // ethercat pdos -p [x]
             ec_cmd_show_slave_pdos(global_cmd_master, atoi(argv[3]));
-            return 0;
+            ret = 0;
+            goto out;
         } else {
         }
     } else if (argc >= 3 && strcmp(argv[1], "states") == 0) {
@@ -613,11 +647,13 @@ int ethercat(int argc, const char **argv)
             for (uint32_t i = 0; i < global_cmd_master->slave_count; i++) {
                 ec_cmd_slave_state_request(global_cmd_master, i, strtoul(argv[4], NULL, 16));
             }
-            return 0;
+            ret = 0;
+            goto out;
         } else if (argc == 5 && strcmp(argv[2], "-p") == 0) {
             // ethercat states -p [x] [state]
             ec_cmd_slave_state_request(global_cmd_master, atoi(argv[3]), strtoul(argv[4], NULL, 16));
-            return 0;
+            ret = 0;
+            goto out;
         } else {
         }
     } else if (argc >= 2 && strcmp(argv[1], "wc") == 0) {
@@ -638,7 +674,8 @@ int ethercat(int argc, const char **argv)
                            global_cmd_master->slaves[i].expected_working_counter);
             }
 #endif
-            return 0;
+            ret = 0;
+            goto out;
         } else {
         }
     } else if (argc >= 5 && strcmp(argv[1], "coe_read") == 0) {
@@ -666,7 +703,9 @@ int ethercat(int argc, const char **argv)
         }
         ec_datagram_clear(&datagram);
 
-        return 0;
+        ret = 0;
+
+        goto out;
     } else if (argc >= 7 && strcmp(argv[1], "coe_write") == 0) {
         // ethercat coe_write -p [slave_idx] [index] [subindex] [u32data]
         static ec_datagram_t datagram;
@@ -698,19 +737,23 @@ int ethercat(int argc, const char **argv)
             EC_LOG_RAW("Slave %u coe write success\n", slave_idx);
         }
         ec_datagram_clear(&datagram);
-        return 0;
+        ret = 0;
+        goto out;
     } else if (argc >= 4 && strcmp(argv[1], "sii_read") == 0) {
         // ethercat sii_read -p [slave_idx]
         uint32_t slave_idx = atoi(argv[3]);
         if (slave_idx >= global_cmd_master->slave_count) {
             EC_LOG_RAW("No slaves found\n");
-            return -1;
+            ret = -1;
+            goto out;
         }
 
         ec_hexdump(global_cmd_master->slaves[slave_idx].sii_image,
                    global_cmd_master->slaves[slave_idx].sii_nwords * 2);
 
-        return 0;
+        ret = 0;
+
+        goto out;
     } else if (argc >= 5 && strcmp(argv[1], "sii_write") == 0) {
         // ethercat sii_write -p [slave_idx]
         static ec_datagram_t datagram;
@@ -720,9 +763,7 @@ int ethercat(int argc, const char **argv)
 
         uint32_t slave_idx = atoi(argv[3]);
 
-        ec_osal_mutex_take(global_cmd_master->scan_lock);
         ret = ec_sii_write(global_cmd_master, slave_idx, &datagram, 0x0000, (const uint16_t *)cherryecat_eepromdata, sizeof(cherryecat_eepromdata));
-        ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u sii_write failed: %d\n", slave_idx, ret);
@@ -731,7 +772,8 @@ int ethercat(int argc, const char **argv)
         }
 
         ec_datagram_clear(&datagram);
-        return 0;
+        ret = 0;
+        goto out;
     }
 #ifdef CONFIG_EC_FOE
     else if (argc >= 7 && strcmp(argv[1], "foe_write") == 0) {
@@ -744,7 +786,8 @@ int ethercat(int argc, const char **argv)
 
         size = parse_hex_string(argv[6], hexdata, sizeof(hexdata));
         if (size < 0) {
-            return -1;
+            ret = -1;
+            goto out;
         }
         static ec_datagram_t datagram;
 
@@ -752,9 +795,7 @@ int ethercat(int argc, const char **argv)
 
         EC_LOG_RAW("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
-        ec_osal_mutex_take(global_cmd_master->scan_lock);
         ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size, NULL);
-        ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_write failed: %d\n", slave_idx, ret);
@@ -763,7 +804,8 @@ int ethercat(int argc, const char **argv)
         }
 
         ec_datagram_clear(&datagram);
-        return 0;
+        ret = 0;
+        goto out;
     } else if (argc >= 6 && strcmp(argv[1], "foe_read") == 0) {
         // ethercat foe_read -p [slave_idx] [filename] [password]
         uint8_t hexdata[256];
@@ -778,9 +820,7 @@ int ethercat(int argc, const char **argv)
 
         ec_datagram_init(&datagram, 1024);
 
-        ec_osal_mutex_take(global_cmd_master->scan_lock);
         ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size, NULL);
-        ec_osal_mutex_give(global_cmd_master->scan_lock);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_read failed: %d\n", slave_idx, ret);
@@ -789,7 +829,8 @@ int ethercat(int argc, const char **argv)
         }
 
         ec_datagram_clear(&datagram);
-        return 0;
+        ret = 0;
+        goto out;
     }
 #endif
 #ifdef CONFIG_EC_EOE
@@ -820,7 +861,8 @@ int ethercat(int argc, const char **argv)
         } else {
             EC_LOG_RAW("eoe start success\n");
         }
-        return 0;
+        ret = 0;
+        goto out;
     }
 #endif
     else if (strcmp(argv[1], "perf") == 0) {
@@ -846,14 +888,16 @@ int ethercat(int argc, const char **argv)
             global_cmd_master->min_offset_ns = INT32_MAX;
             global_cmd_master->max_offset_ns = INT32_MIN;
             ec_osal_leave_critical_section(flags);
-            return 0;
+            ret = 0;
+            goto out;
         } else if (strcmp(argv[2], "-d") == 0) {
             uintptr_t flags;
 
             flags = ec_osal_enter_critical_section();
             global_cmd_master->perf_enable = false;
             ec_osal_leave_critical_section(flags);
-            return 0;
+            ret = 0;
+            goto out;
         } else if (strcmp(argv[2], "-v") == 0) {
             for (uint32_t i = 0; i < 10; i++) {
                 EC_LOG_RAW("Period    min = %10u, max = %10u, avg = %10u ns\n",
@@ -875,13 +919,20 @@ int ethercat(int argc, const char **argv)
 
                 ec_osal_msleep(1000);
             }
-            return 0;
+            ret = 0;
+            goto out;
         }
     } else {
     }
 
     EC_LOG_RAW("Invalid command: %s\n", argv[1]);
     ec_master_cmd_show_help();
-    return -1;
+    ret = -1;
+
+out:
+    if (need_lock) {
+        ec_osal_mutex_give(global_cmd_master->scan_lock);
+    }
+    return ret;
 }
 #endif

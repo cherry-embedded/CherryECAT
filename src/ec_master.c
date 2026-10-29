@@ -468,23 +468,25 @@ int ec_master_start(ec_master_t *master)
     uint32_t bitlen;
     uint8_t sm_idx;
     uint8_t netdev_idx;
+    volatile uint32_t timeout = 0;
+
+    ec_osal_mutex_take(master->scan_lock);
+    if (master->started) {
+        ec_osal_mutex_give(master->scan_lock);
+        return 0;
+    }
 
     EC_ASSERT_MSG(master->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", master->cycle_time);
     EC_ASSERT_MSG((int64_t)master->shift_time >= -(int64_t)master->cycle_time &&
                       (int64_t)master->shift_time <= master->cycle_time,
                   "Shift time %d ns is outside +/- cycle time %u ns.\n", master->shift_time, master->cycle_time);
 
-    if (master->started) {
-        return 0;
-    }
-
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
         if (!master->netdev[netdev_idx] || !master->netdev[netdev_idx]->link_state) {
+            ec_osal_mutex_give(master->scan_lock);
             return -EC_ERR_INVAL;
         }
     }
-
-    ec_osal_mutex_take(master->scan_lock);
 
     if (master->rescan_request || !master->scan_done || !master->slave_count) {
         ec_osal_mutex_give(master->scan_lock);
@@ -509,8 +511,16 @@ int ec_master_start(ec_master_t *master)
     master->dc_sync0_valid = false;
 
     // wait for non-periodic thread to suspend
+    ec_osal_sem_give(master->nonperiod_sem);
     while (master->nonperiod_suspend) {
         ec_osal_msleep(10);
+        if (++timeout > 300) {
+            EC_LOG_ERR("Timeout waiting for non-periodic thread to suspend\n");
+            master->phase = EC_IDLE;
+            master->nonperiod_suspend = false;
+            ec_osal_mutex_give(master->scan_lock);
+            return -EC_ERR_TIMEOUT;
+        }
     }
 
     for (uint32_t slave_idx = 0; slave_idx < master->slave_count; slave_idx++) {
@@ -609,13 +619,14 @@ int ec_master_start(ec_master_t *master)
 
 int ec_master_stop(ec_master_t *master)
 {
-    uint64_t stop_time;
+    volatile uint32_t timeout = 0;
 
+    ec_osal_mutex_take(master->scan_lock);
     if (!master->started) {
+        ec_osal_mutex_give(master->scan_lock);
         return 0;
     }
 
-    ec_osal_mutex_take(master->scan_lock);
     master->started = false;
 
     for (uint32_t i = 0; i < master->slave_count; i++) {
@@ -624,7 +635,6 @@ int ec_master_stop(ec_master_t *master)
         master->slaves[i].force_update = true;
     }
 
-    stop_time = jiffies;
     if (!master->rescan_request) {
         while (1) {
             bool pending = false;
@@ -639,11 +649,11 @@ int ec_master_stop(ec_master_t *master)
             if (!pending || master->rescan_request) {
                 break;
             }
-            if (jiffies - stop_time >= 5 * 1000 * 1000 * 1000ULL) {
-                EC_LOG_WRN("Timed out waiting for slaves to leave OP\n");
+            ec_osal_msleep(10);
+            if (++timeout > 300) {
+                EC_LOG_ERR("Timeout waiting for slaves to reach PRE-OP state\n");
                 break;
             }
-            ec_osal_msleep(10);
         }
     }
 
