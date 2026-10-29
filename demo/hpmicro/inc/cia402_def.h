@@ -1,10 +1,12 @@
 #ifndef CIA402_DEF_H
 #define CIA402_DEF_H
 
+#include "ec_util.h"
+
 /**
 STRUCT_PACKED_START: Is defined before the typedef struct construct to pack the generic structures if necessary */
 #ifndef STRUCT_PACKED_START
-#define STRUCT_PACKED_START                       ATTR_PACKED
+#define STRUCT_PACKED_START                       __PACKED_STRUCT
 #endif
 
 /**
@@ -72,7 +74,7 @@ STRUCT_PACKED_END: Is defined after the typedef struct {} construct to pack the 
  * @{
  */
 /** \brief Data structure to handle the process data transmitted via 0x1A00 (csp/csv TxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjStatusWord; /**< \brief Status word (0x6041)*/
     int32_t ObjPositionActualValue; /**< \brief Actual position (0x6064)*/
@@ -83,7 +85,7 @@ TCiA402PDO1A00;
 
 
 /** \brief Data structure to handle the process data transmitted via 0x1A01 (csp TxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjStatusWord; /**< \brief Status word (0x6041)*/
     int32_t ObjPositionActualValue; /**< \brief Actual position (0x6064)*/
@@ -93,7 +95,7 @@ TCiA402PDO1A01;
 
 
 /** \brief Data structure to handle the process data transmitted via 0x1A02 (csv TxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjStatusWord; /**< \brief Status word (0x6041)*/
     int32_t ObjPositionActualValue; /**< \brief Actual position (0x6064)*/
@@ -103,7 +105,7 @@ TCiA402PDO1A02;
 
 
 /** \brief Data structure to handle the process data transmitted via 0x1600 (csp/csv RxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjControlWord; /**< \brief Control word (0x6040)*/
     int32_t ObjTargetPosition; /**< \brief Target position (0x607A)*/
@@ -114,7 +116,7 @@ TCiA402PDO1600;
 
 
 /** \brief Data structure to handle the process data transmitted via 0x1601 (csp RxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjControlWord; /**< \brief Control word (0x6040)*/
     int32_t ObjTargetPosition; /**< \brief Target position (0x607A)*/
@@ -124,7 +126,7 @@ TCiA402PDO1601;
 
 
 /** \brief Data structure to handle the process data transmitted via 0x1602 (csv RxPDO)*/
-typedef struct STRUCT_PACKED_START
+typedef STRUCT_PACKED_START
 {
     uint16_t ObjControlWord; /**< \brief Control word (0x6040)*/
     int32_t ObjTargetVelocity; /**< \brief Target velocity (0x60FF)*/

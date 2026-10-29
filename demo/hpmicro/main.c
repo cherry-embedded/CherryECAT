@@ -11,6 +11,7 @@
 
 /*  HPM example includes. */
 #include <stdio.h>
+#include <stdlib.h>
 #include "board.h"
 #include "hpm_clock_drv.h"
 #include "hpm_uart_drv.h"
@@ -111,10 +112,183 @@ CSH_CMD_EXPORT(ethercat, );
 // weak api used in ec_cmd.c
 unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
 
+#define HPM_IO_TOGGLE_NS 500000000ULL
+
+#define TEST_HPM_MOTOR_MAX_SLAVES 32U
+
+typedef struct {
+    volatile bool enable;
+    bool fault_reset_sent;
+    volatile bool position_set;
+    volatile int32_t speed;
+    volatile int32_t position;
+} hpm_motor_config_t;
+
+static hpm_motor_config_t hpm_motors[TEST_HPM_MOTOR_MAX_SLAVES];
+
+static uint8_t hpm_motor_mode(const ec_slave_t *slave)
+{
+    if ((slave->sii.product_code != 0x00000003U && slave->sii.product_code != 0x00000004U) ||
+        slave->odata_size != sizeof(TCiA402PDO1601) ||
+        slave->idata_size != sizeof(TCiA402PDO1A01) || !slave->config) {
+        return NO_MODE;
+    }
+
+    for (uint8_t i = 0; i < slave->config->sync_count; i++) {
+        const ec_sync_info_t *sync = &slave->config->sync[i];
+        if (sync->dir != EC_DIR_OUTPUT || sync->n_pdos != 1) {
+            continue;
+        }
+        if (sync->pdos[0].index == 0x1601) {
+            return CYCLIC_SYNC_POSITION_MODE;
+        }
+        if (sync->pdos[0].index == 0x1602) {
+            return CYCLIC_SYNC_VELOCITY_MODE;
+        }
+    }
+    return NO_MODE;
+}
+
+static void hpm_motor_pdo(ec_slave_t *slave, uint8_t *output, uint8_t *input, uint8_t mode)
+{
+    hpm_motor_config_t *motor = &hpm_motors[slave->index];
+    TCiA402PDO1A01 feedback;
+
+    ec_memcpy(&feedback, input, sizeof(feedback));
+    uint16_t state = EC_READ_U16(input);
+    state &= STATUSWORD_STATE_MASK;
+    int32_t actual_position = feedback.ObjPositionActualValue;
+    uint16_t control = CONTROLWORD_COMMAND_DISABLEVOLTAGE;
+
+    bool enable = motor->enable;
+    if (!enable) {
+        control = CONTROLWORD_COMMAND_DISABLEVOLTAGE;
+        motor->fault_reset_sent = false;
+    } else {
+        switch (state) {
+            case STATUSWORD_STATE_SWITCHEDONDISABLED:
+                control = CONTROLWORD_COMMAND_SHUTDOWN;
+                break;
+            case STATUSWORD_STATE_READYTOSWITCHON:
+                control = CONTROLWORD_COMMAND_SWITCHON;
+                break;
+            case STATUSWORD_STATE_SWITCHEDON:
+            case STATUSWORD_STATE_OPERATIONENABLED:
+            case STATUSWORD_STATE_QUICKSTOPACTIVE:
+                control = CONTROLWORD_COMMAND_ENABLEOPERATION;
+                break;
+            case STATUSWORD_STATE_FAULT:
+                if (!motor->fault_reset_sent) {
+                    control = CONTROLWORD_COMMAND_FAULTRESET;
+                    motor->fault_reset_sent = true;
+                }
+                break;
+            default:
+                break;
+        }
+        if (state != STATUSWORD_STATE_FAULT) {
+            motor->fault_reset_sent = false;
+        }
+    }
+
+    /* Packed PDO fields may be unaligned in the process data buffer. */
+    if (mode == CYCLIC_SYNC_VELOCITY_MODE) {
+        TCiA402PDO1602 command = {
+            .ObjControlWord = control,
+            .ObjTargetVelocity = enable ? motor->speed : 0,
+            .Padding16Bit = 0,
+        };
+        ec_memcpy(output, &command, sizeof(command));
+    } else {
+        TCiA402PDO1601 command = {
+            .ObjControlWord = control,
+            .ObjTargetPosition = enable && motor->position_set ? motor->position : actual_position,
+            .Padding16Bit = 0,
+        };
+        ec_memcpy(output, &command, sizeof(command));
+    }
+}
+
 // weak api used in ec_cmd.c
 void ec_pdo_callback(ec_slave_t *slave, uint8_t *output, uint8_t *input)
 {
+    if (slave->sii.vendor_id != 0x0048504DU || slave->current_state != EC_SLAVE_STATE_OP) {
+        return;
+    }
+
+    switch (slave->sii.product_code) {
+        case 0x00000001U:
+        case 0x00000005U: {
+            uint32_t value = 0;
+
+            value = EC_READ_U32(input);
+            EC_WRITE_U32(output, value);
+            break;
+        }
+        case 0x00000003U:
+        case 0x00000004U: {
+            uint8_t mode = hpm_motor_mode(slave);
+            if (mode != NO_MODE) {
+                hpm_motor_pdo(slave, output, input, mode);
+            }
+        } break;
+    }
 }
+
+int motor_control(int argc, const char **argv)
+{
+    if (argc != 4) {
+        printf("Usage: motor_control -p <idx> <0|1>\n");
+        return -1;
+    }
+
+    int index = atoi(argv[2]);
+    if (index < 0 || index >= TEST_HPM_MOTOR_MAX_SLAVES) {
+        printf("Invalid slave index, expected 0-%u\n", TEST_HPM_MOTOR_MAX_SLAVES - 1U);
+        return -1;
+    }
+
+    hpm_motors[index].enable = atoi(argv[3]);
+    return 0;
+}
+CSH_CMD_EXPORT(motor_control, motor_control - p<idx><0 | 1>);
+
+int speed_control(int argc, const char **argv)
+{
+    if (argc != 4) {
+        printf("Usage: speed_control -p <idx> <velocity>\n");
+        return -1;
+    }
+
+    int index = atoi(argv[2]);
+    if (index < 0 || index >= TEST_HPM_MOTOR_MAX_SLAVES) {
+        printf("Invalid slave index, expected 0-%u\n", TEST_HPM_MOTOR_MAX_SLAVES - 1U);
+        return -1;
+    }
+
+    hpm_motors[index].speed = atoi(argv[3]);
+    return 0;
+}
+CSH_CMD_EXPORT(speed_control, speed_control - p<idx><velocity>);
+
+int position_control(int argc, const char **argv)
+{
+    if (argc != 4) {
+        printf("Usage: position_control -p <idx> <position>\n");
+        return -1;
+    }
+
+    int index = atoi(argv[2]);
+    if (index < 0 || index >= TEST_HPM_MOTOR_MAX_SLAVES) {
+        printf("Invalid slave index, expected 0-%u\n", TEST_HPM_MOTOR_MAX_SLAVES - 1U);
+        return -1;
+    }
+
+    hpm_motors[index].position = atoi(argv[3]);
+    hpm_motors[index].position_set = true;
+    return 0;
+}
+CSH_CMD_EXPORT(position_control, position_control - p<idx><position>);
 
 #ifdef CONFIG_EC_EOE
 #include "tcp_client.h"
