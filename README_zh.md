@@ -15,6 +15,7 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 - ~ 4K ram，~40K flash（24K + 16K shell cmd, including log）
 - 异步队列式传输（一次传输可以携带多个 datagram）
 - 零拷贝技术：直接使用 enet tx/rx buffer 填充和解析 ethercat 数据
+- 统一的邮箱管理，内部根据协议自动分发（商用版本才有）
 - 内置 PHY 驱动，自动识别各类 PHY 芯片
 - 支持热插拔
 	- 自动扫描总线
@@ -49,7 +50,7 @@ CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机�
 	- 必须支持 64 位打印
 
 - 从站
-	- 必须支持 DC 和 system time 功能
+	- 必须支持 64bit DC 和 system time 功能
 	- 必须支持 sdo complete access
 	- 必须支持 LRW 功能
 	- SII 必须携带 sync manager 信息
@@ -110,8 +111,9 @@ Generating C code...
 
 ## 支持的开发板
 
-- HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
+- HPM6750EVK2/HPM6800EVK/HPM6E00EVK/HPM5E00EVK
 - RT-Thread RZN2L-EtherKit/RA8P1 Titan/RuiQing Pai
+- Renesas CPK RA8P1/RAPT2
 - STM32H7
 
 ## 联系
@@ -120,4 +122,10 @@ QQ group: 563650597
 
 ## License
 
-FOE，EOE 以及备份冗余功能采用 **免版税授权** 性质，其余功能可免费商用
+以下功能为商用版本，采用 **免版税授权**：
+
+- 统一的邮箱管理，内部根据协议自动分发
+- 基于第一条提供的 COE, FOE, EOE + lwip 代码
+- 备份冗余功能
+
+除此以外的其他功能可免费商用。

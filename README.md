@@ -15,6 +15,7 @@ CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT maste
 - ~ 4K ram, ~40K flash(24K + 16K shell cmd, including log)
 - Asynchronous queue-based transfer (one transfer can carry multiple datagrams)
 - Zero-copy technology: directly use enet tx/rx buffer to fill and parse ethercat data
+- Unified mailbox management, with automatic internal distribution according to the protocol(commercial version only)
 - PHY driver internal, scan and configure PHY automatically
 - Support hot-plugging
 	- Automatic scanning bus
@@ -49,7 +50,7 @@ The pic shows dc jitter ~ 3us (hpm6800evk with flash_xip):
 	- Must support long long print
 
 - **Slave**
-	- Must support DC and system time
+	- Must support DC and system time with 64bit
 	- Must support sdo complete access
 	- Must support LRW
 	- SII must have sync manager information
@@ -110,8 +111,9 @@ Generating C code...
 
 ## Support Boards
 
-- HPM6750EVK2/HPM6800EVK/**HPM5E00EVK**(hybrid internal)
+- HPM6750EVK2/HPM6800EVK/HPM6E00EVK/HPM5E00EVK
 - RT-Thread RZN2L-EtherKit/RA8P1 Titan/RuiQing Pai
+- Renesas CPK RA8P1/RAPT2
 - STM32H7
 
 
@@ -121,4 +123,10 @@ QQ group: 563650597
 
 ## License
 
-FOE, EOE and backup redundancy features are available in **Royalty-Free**; other are free to use
+The following features are included in the commercial version and are licensed on a royalty-free basis:
+
+- Unified mailbox management, with automatic internal distribution according to the protocol
+- Based on the COE, FOE, EOE + lwIP code provided in the first item
+- Backup and redundancy functionality
+
+All other features besides the above may be used commercially free of charge.
