@@ -25,8 +25,8 @@
 #include "ec_datagram.h"
 #include "ec_common.h"
 #include "ec_sii.h"
-#include "ec_slave.h"
 #include "ec_mailbox.h"
+#include "ec_slave.h"
 #include "ec_coe.h"
 #include "ec_foe.h"
 #include "ec_eoe.h"
@@ -101,8 +101,9 @@ typedef struct ec_master {
     ec_osal_thread_t scan_thread;
     ec_osal_thread_t nonperiod_thread;
     ec_osal_sem_t nonperiod_sem;
-    struct ec_osal_timer *linkdetect_timer;
     bool nonperiod_suspend;
+
+    struct ec_osal_timer *linkdetect_timer;
 
     uint8_t pdo_buffer[CONFIG_EC_MAX_NETDEVS][CONFIG_EC_MAX_PDO_BUFSIZE];
     uint32_t actual_pdo_size;          /**< Actual PDO size for current setting. */

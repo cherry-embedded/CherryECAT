@@ -9,21 +9,10 @@
 
 static ec_master_t *global_cmd_master = NULL;
 
-#ifdef CONFIG_EC_EOE
-static ec_eoe_t *global_cmd_eoe = NULL;
-#endif
-
 void ec_master_cmd_init(ec_master_t *master)
 {
     global_cmd_master = master;
 }
-
-#ifdef CONFIG_EC_EOE
-void ec_master_cmd_eoe_init(ec_eoe_t *master)
-{
-    global_cmd_eoe = master;
-}
-#endif
 
 __WEAK unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
 
@@ -789,13 +778,10 @@ int ethercat(int argc, const char **argv)
             ret = -1;
             goto out;
         }
-        static ec_datagram_t datagram;
-
-        ec_datagram_init(&datagram, 1024);
 
         EC_LOG_RAW("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
-        ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size, NULL);
+        ret = ec_foe_write(global_cmd_master, slave_idx, filename, password, hexdata, size, NULL);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_write failed: %d\n", slave_idx, ret);
@@ -803,7 +789,6 @@ int ethercat(int argc, const char **argv)
             EC_LOG_RAW("Slave %u foe write success\n", slave_idx);
         }
 
-        ec_datagram_clear(&datagram);
         ret = 0;
         goto out;
     } else if (argc >= 6 && strcmp(argv[1], "foe_read") == 0) {
@@ -816,11 +801,7 @@ int ethercat(int argc, const char **argv)
 
         EC_LOG_RAW("Slave %u foe read file %s, password: 0x%08x\n", slave_idx, filename, password);
 
-        static ec_datagram_t datagram;
-
-        ec_datagram_init(&datagram, 1024);
-
-        ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size, NULL);
+        ret = ec_foe_read(global_cmd_master, slave_idx, filename, password, hexdata, sizeof(hexdata), &size, NULL);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_read failed: %d\n", slave_idx, ret);
@@ -828,7 +809,6 @@ int ethercat(int argc, const char **argv)
             ec_hexdump(hexdata, size);
         }
 
-        ec_datagram_clear(&datagram);
         ret = 0;
         goto out;
     }
@@ -855,11 +835,16 @@ int ethercat(int argc, const char **argv)
         for (uint8_t i = 0; i < 6; i++) {
             master_ip_param.mac_addr[i] = i;
         }
-        ret = ec_eoe_start(global_cmd_eoe, global_cmd_master, atoi(argv[3]), &master_ip_param, &slave_ip_param);
+        ret = ec_eoe_set_ip(global_cmd_master, atoi(argv[3]), &master_ip_param, &slave_ip_param);
         if (ret < 0) {
-            EC_LOG_RAW("eoe start failed: %d\n", ret);
+            EC_LOG_RAW("eoe set ip failed: %d\n", ret);
         } else {
-            EC_LOG_RAW("eoe start success\n");
+            ret = ec_eoe_start(global_cmd_master, atoi(argv[3]));
+            if (ret < 0) {
+                EC_LOG_RAW("eoe start failed: %d\n", ret);
+            } else {
+                EC_LOG_RAW("eoe start success\n");
+            }
         }
         ret = 0;
         goto out;

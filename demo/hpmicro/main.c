@@ -29,10 +29,6 @@ SDK_DECLARE_EXT_ISR_M(BOARD_CONSOLE_UART_IRQ, shell_uart_isr)
 
 ATTR_PLACE_AT_FAST_RAM_BSS ec_master_t g_ec_master;
 
-#ifdef CONFIG_EC_EOE
-ATTR_PLACE_AT_FAST_RAM_BSS ec_eoe_t g_ec_eoe;
-#endif
-
 static void task_start(void *param);
 
 int main(void)
@@ -97,9 +93,6 @@ static void task_start(void *param)
     printf("Enable shell uart interrupt\r\n");
 
     ec_master_cmd_init(&g_ec_master);
-#ifdef CONFIG_EC_EOE
-    ec_master_cmd_eoe_init(&g_ec_eoe);
-#endif
     ec_master_init(&g_ec_master, 0);
 
     printf("Exit start task\r\n");
@@ -292,9 +285,13 @@ CSH_CMD_EXPORT(position_control, position_control - p<idx><position>);
 
 #ifdef CONFIG_EC_EOE
 #include "tcp_client.h"
+#include "lwip/netif.h"
 int tcp_client(int argc, const char **argv)
 {
-    tcp_client_init(&g_ec_eoe.netif);
+    if (!netif_default) {
+        return -1;
+    }
+    tcp_client_init(netif_default);
     return 0;
 }
 CSH_CMD_EXPORT(tcp_client, );
