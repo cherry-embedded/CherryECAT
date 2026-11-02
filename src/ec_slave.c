@@ -1196,9 +1196,10 @@ void ec_slaves_scanning(ec_master_t *master)
         uint8_t step = 0;
         size_t flags;
 
+        ec_osal_mutex_take(master->scan_lock);
+
         ec_master_stop(master);
 
-        ec_osal_mutex_take(master->scan_lock);
         master->scan_done = false;
         EC_LOG_INFO("Rescanning bus...\n");
 
