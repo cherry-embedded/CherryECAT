@@ -526,6 +526,7 @@ int ethercat(int argc, const char **argv)
         goto out;
     } else if (strcmp(argv[1], "start") == 0 && argc >= 3) {
         static ec_slave_config_t slave_config[32];
+        ec_master_config_t master_config;
         uint8_t motor_mode;
 
         if (global_cmd_master->started) {
@@ -539,7 +540,7 @@ int ethercat(int argc, const char **argv)
             motor_mode = 0;
         }
 
-        if(global_cmd_master->slave_count > 32) {
+        if (global_cmd_master->slave_count > 32) {
             EC_LOG_ERR("Slave count exceeds maximum supported by command interface (32)\n");
             ret = -1;
             goto out;
@@ -563,7 +564,7 @@ int ethercat(int argc, const char **argv)
             slave_config[i].dc_assign_activate = 0x300;
 
             slave_config[i].dc_sync[0].cycle_time = atoi(argv[2]) * 1000;
-            slave_config[i].dc_sync[0].shift_time = 1000000;
+            slave_config[i].dc_sync[0].shift_time = slave_config[i].dc_sync[0].cycle_time * 0.6f;
             slave_config[i].dc_sync[1].cycle_time = 0;
             slave_config[i].dc_sync[1].shift_time = 0;
             slave_config[i].pdo_callback = ec_pdo_callback;
@@ -571,10 +572,10 @@ int ethercat(int argc, const char **argv)
             global_cmd_master->slaves[i].config = &slave_config[i];
         }
 
-        global_cmd_master->cycle_time = atoi(argv[2]) * 1000;       // cycle time in ns
-        global_cmd_master->shift_time = global_cmd_master->cycle_time * 0.2; // master send phase: 20% of a cycle before SYNC0
-        global_cmd_master->dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
-        ret = ec_master_start(global_cmd_master);
+        master_config.cycle_time = atoi(argv[2]) * 1000;            // cycle time in ns
+        master_config.shift_time = master_config.cycle_time * 0.2f; // master send phase: 20% of a cycle before SYNC0
+        master_config.dc_sync_with_dc_ref_enable = true;            // enable DC sync with dc reference clock
+        ret = ec_master_start(global_cmd_master, &master_config);
         if (ret != 0) {
             EC_LOG_ERR("Failed to start master: %d\n", ret);
             ret = -1;

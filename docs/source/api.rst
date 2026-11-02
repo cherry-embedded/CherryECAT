@@ -41,7 +41,7 @@ ec_master_start
 .. code-block:: c
    :linenos:
 
-    int ec_master_start(ec_master_t *master);
+    int ec_master_start(ec_master_t *master, ec_master_config_t *config);
 
 .. list-table::
     :widths: 10 10
@@ -51,6 +51,8 @@ ec_master_start
       - description
     * - master
       - 主站对象指针
+    * - config
+      - 主站配置参数指针
 
 .. note:: 此时非周期性任务线程关闭，后续非周期性 datagram 将会随着周期性 datagram 一起执行
 
@@ -110,7 +112,6 @@ ec_coe_download
 
     int ec_coe_download(ec_master_t *master,
                         uint16_t slave_index,
-                        ec_datagram_t *datagram,
                         uint16_t index,
                         uint8_t subindex,
                         const void *buf,
@@ -127,8 +128,6 @@ ec_coe_download
       - 主站对象指针
     * - slave_index
       - 从站索引号，从 0 开始
-    * - datagram
-      - 数据报文对象指针， 需要使用 ec_datagram_init 初始化后传入
     * - index
       - 从站对象字典索引号
     * - subindex
@@ -152,7 +151,6 @@ ec_coe_upload
 
     int ec_coe_upload(ec_master_t *master,
                     uint16_t slave_index,
-                    ec_datagram_t *datagram,
                     uint16_t index,
                     uint8_t subindex,
                     const void *buf,
@@ -170,8 +168,6 @@ ec_coe_upload
       - 主站对象指针
     * - slave_index
       - 从站索引号，从 0 开始
-    * - datagram
-      - 数据报文对象指针， 需要使用 ec_datagram_init 初始化后传入
     * - index
       - 从站对象字典索引号
     * - subindex
@@ -197,7 +193,6 @@ ec_foe_write
 
   int ec_foe_write(ec_master_t *master,
                   uint16_t slave_index,
-                  ec_datagram_t *datagram,
                   const char *filename,
                   uint32_t password,
                   const void *buf,
@@ -214,8 +209,6 @@ ec_foe_write
       - 主站对象指针
     * - slave_index
       - 从站索引号，从 0 开始
-    * - datagram
-      - 数据报文对象指针， 需要使用 ec_datagram_init 初始化后传入
     * - filename
       - 文件名字符串指针
     * - password
@@ -239,7 +232,6 @@ ec_foe_read
 
   int ec_foe_read(ec_master_t *master,
                   uint16_t slave_index,
-                  ec_datagram_t *datagram,
                   const char *filename,
                   uint32_t password,
                   void *buf,
@@ -257,8 +249,6 @@ ec_foe_read
       - 主站对象指针
     * - slave_index
       - 从站索引号，从 0 开始
-    * - datagram
-      - 数据报文对象指针， 需要使用 ec_datagram_init 初始化后传入
     * - filename
       - 文件名字符串指针
     * - password
@@ -294,8 +284,6 @@ ec_eoe_start
 
     * - parameter
       - description
-    * - ec_eoe_t
-      - EoE 对象指针
     * - master
       - 主站对象指针
     * - slave_index

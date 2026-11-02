@@ -462,7 +462,7 @@ void ec_master_deinit(ec_master_t *master)
     (void)master;
 }
 
-int ec_master_start(ec_master_t *master)
+int ec_master_start(ec_master_t *master, ec_master_config_t *config)
 {
     ec_slave_t *slave;
     uint32_t bitlen;
@@ -476,10 +476,10 @@ int ec_master_start(ec_master_t *master)
         goto out;
     }
 
-    EC_ASSERT_MSG(master->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", master->cycle_time);
-    EC_ASSERT_MSG((int64_t)master->shift_time >= -(int64_t)master->cycle_time &&
-                      (int64_t)master->shift_time <= master->cycle_time,
-                  "Shift time %d ns is outside +/- cycle time %u ns.\n", master->shift_time, master->cycle_time);
+    EC_ASSERT_MSG(config->cycle_time >= (40 * 1000), "Cycle time %u ns is too small. Minimum is 40000 ns.\n", config->cycle_time);
+    EC_ASSERT_MSG((int64_t)config->shift_time >= -(int64_t)config->cycle_time &&
+                      (int64_t)config->shift_time <= config->cycle_time,
+                  "Shift time %d ns is outside +/- cycle time %u ns.\n", config->shift_time, config->cycle_time);
 
     for (netdev_idx = EC_NETDEV_MAIN; netdev_idx < CONFIG_EC_MAX_NETDEVS; netdev_idx++) {
         if (!master->netdev[netdev_idx] || !master->netdev[netdev_idx]->link_state) {
@@ -498,6 +498,9 @@ int ec_master_start(ec_master_t *master)
             goto out;
         }
     }
+    master->cycle_time = config->cycle_time;
+    master->shift_time = config->shift_time;
+    master->dc_sync_with_dc_ref_enable = config->dc_sync_with_dc_ref_enable;
 
     master->actual_working_counter = 0;
     master->expected_working_counter = 0;

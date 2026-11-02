@@ -97,10 +97,10 @@ ethercat 命令行
 .. code-block:: c
    :linenos:
 
-    global_cmd_master->cycle_time = atoi(argv[2]) * 1000;       // cycle time in ns
-    global_cmd_master->shift_time = atoi(argv[2]) * 1000 * 0.2; // 20% shift time in ns
-    global_cmd_master->dc_sync_with_dc_ref_enable = true;       // enable DC sync with dc reference clock
-    ec_master_start(global_cmd_master);
+        master_config.cycle_time = atoi(argv[2]) * 1000;            // cycle time in ns
+        master_config.shift_time = master_config.cycle_time * 0.2f; // master send phase: 20% of a cycle before SYNC0
+        master_config.dc_sync_with_dc_ref_enable = true;            // enable DC sync with dc reference clock
+        ret = ec_master_start(global_cmd_master, &master_config);
 
 - PDO 数据统一在配置的 ``pdo_callback`` 中处理：从 ``input`` 读取输入，向 ``output`` 写入下一周期的输出，长度分别为 ``slave->idata_size`` 和 ``slave->odata_size``。回调不能阻塞，应用应在回调中读写 PDO。诊断命令 ``pdo_read -p <idx>`` 直接读取 PDO 映射地址，打印期间数据仍可能随通信周期更新。
 

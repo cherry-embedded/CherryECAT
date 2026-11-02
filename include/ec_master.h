@@ -44,6 +44,12 @@ typedef enum {
     EC_OPERATION /**< Operation phase. The master was requested by a realtime application. */
 } ec_master_phase_t;
 
+typedef struct ec_master_config {
+    bool dc_sync_with_dc_ref_enable; /**< true: Master follows DC reference clock; false: reference follows master. */
+    uint32_t cycle_time;             /**< Cycle time [ns]. */
+    int32_t shift_time;              /**< Master send advance relative to SYNC0 [ns]; positive is earlier. */
+} ec_master_config_t;
+
 typedef struct ec_master {
     uint8_t index;
     ec_netdev_t *netdev[CONFIG_EC_MAX_NETDEVS];
@@ -112,7 +118,7 @@ typedef struct ec_master {
 
 int ec_master_init(ec_master_t *master, uint8_t master_index);
 void ec_master_deinit(ec_master_t *master);
-int ec_master_start(ec_master_t *master);
+int ec_master_start(ec_master_t *master, ec_master_config_t *config);
 int ec_master_stop(ec_master_t *master);
 int ec_master_queue_ext_datagram(ec_master_t *master, ec_datagram_t *datagram, bool wakep_poll, bool waiter);
 
