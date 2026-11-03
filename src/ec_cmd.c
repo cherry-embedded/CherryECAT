@@ -9,21 +9,10 @@
 
 static ec_master_t *global_cmd_master = NULL;
 
-#ifdef CONFIG_EC_EOE
-static ec_eoe_t *global_cmd_eoe = NULL;
-#endif
-
 void ec_master_cmd_init(ec_master_t *master)
 {
     global_cmd_master = master;
 }
-
-#ifdef CONFIG_EC_EOE
-void ec_master_cmd_eoe_init(ec_eoe_t *master)
-{
-    global_cmd_eoe = master;
-}
-#endif
 
 __WEAK unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
 
@@ -109,6 +98,7 @@ static void ec_master_cmd_show_help(void)
 #endif
 #ifdef CONFIG_EC_EOE
     EC_LOG_RAW("  eoe_start -p [slave_idx]                       Start EoE on slave <idx>\n");
+    EC_LOG_RAW("  eoe_stats -p [slave_idx]                       Show EoE counters for slave <idx>\n");
 #endif
     EC_LOG_RAW("  sii_read -p [idx]                              Read SII\n");
     EC_LOG_RAW("  sii_write -p [idx]                             Write SII\n");
@@ -510,6 +500,9 @@ int ethercat(int argc, const char **argv)
                 strcmp(argv[1], "slaves") == 0 || strcmp(argv[1], "pdos") == 0 ||
                 strcmp(argv[1], "states") == 0 || strcmp(argv[1], "sii_read") == 0 ||
                 strcmp(argv[1], "sii_write") == 0;
+#ifdef CONFIG_EC_EOE
+    need_lock |= strcmp(argv[1], "eoe_stats") == 0;
+#endif
 #ifdef CONFIG_EC_PDO_MULTI_DOMAIN
     need_lock |= strcmp(argv[1], "wc") == 0;
 #endif
@@ -798,13 +791,10 @@ int ethercat(int argc, const char **argv)
             ret = -1;
             goto out;
         }
-        static ec_datagram_t datagram;
-
-        ec_datagram_init(&datagram, 1024);
 
         EC_LOG_RAW("Slave %u foe write file %s, password: 0x%08x, size %u\n", slave_idx, filename, password, size);
 
-        ret = ec_foe_write(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, size, NULL);
+        ret = ec_foe_write(global_cmd_master, slave_idx, filename, password, hexdata, size, NULL);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_write failed: %d\n", slave_idx, ret);
@@ -812,7 +802,6 @@ int ethercat(int argc, const char **argv)
             EC_LOG_RAW("Slave %u foe write success\n", slave_idx);
         }
 
-        ec_datagram_clear(&datagram);
         ret = 0;
         goto out;
     } else if (argc >= 6 && strcmp(argv[1], "foe_read") == 0) {
@@ -825,11 +814,7 @@ int ethercat(int argc, const char **argv)
 
         EC_LOG_RAW("Slave %u foe read file %s, password: 0x%08x\n", slave_idx, filename, password);
 
-        static ec_datagram_t datagram;
-
-        ec_datagram_init(&datagram, 1024);
-
-        ret = ec_foe_read(global_cmd_master, slave_idx, &datagram, filename, password, hexdata, sizeof(hexdata), &size, NULL);
+        ret = ec_foe_read(global_cmd_master, slave_idx, filename, password, hexdata, sizeof(hexdata), &size, NULL);
 
         if (ret < 0) {
             EC_LOG_RAW("Slave %u foe_read failed: %d\n", slave_idx, ret);
@@ -837,34 +822,67 @@ int ethercat(int argc, const char **argv)
             ec_hexdump(hexdata, size);
         }
 
-        ec_datagram_clear(&datagram);
         ret = 0;
         goto out;
     }
 #endif
 #ifdef CONFIG_EC_EOE
-    else if (argc >= 4 && strcmp(argv[1], "eoe_start") == 0) {
+    else if (strcmp(argv[1], "eoe_stats") == 0) {
+        char *end;
+        unsigned long slave_index;
+        ec_eoe_stats_t stats;
+        ip4_addr_t address;
+        bool linked;
+        char ip[16];
+        uintptr_t flags;
+
+        if (argc != 4 || strcmp(argv[2], "-p") != 0) {
+            EC_LOG_RAW("Usage: ethercat eoe_stats -p <idx>\n");
+            ret = -1;
+            goto out;
+        }
+        slave_index = strtoul(argv[3], &end, 10);
+        if (argv[3][0] < '0' || argv[3][0] > '9' || *end ||
+            slave_index >= global_cmd_master->slave_count) {
+            EC_LOG_RAW("Invalid slave index\n");
+            ret = -1;
+            goto out;
+        }
+        flags = ec_osal_enter_critical_section();
+        ec_eoe_t *eoe = &global_cmd_master->slaves[slave_index].eoe;
+        stats = eoe->stats;
+        address = eoe->address;
+        linked = eoe->initialized && eoe->netif_added && eoe->linked;
+        ec_osal_leave_critical_section(flags);
+        ip4addr_ntoa_r(&address, ip, sizeof(ip));
+        EC_LOG_RAW("Slave %u EoE: link=%s, IP=%s\n",
+                   (uint32_t)slave_index, linked ? "UP" : "DOWN", ip);
+        EC_LOG_RAW("  RX: frames=%u, fragments=%u, bytes=%u, errors=%u, input errors=%u\n",
+                   stats.rx_frames, stats.rx_fragments, stats.rx_bytes,
+                   stats.rx_errors, stats.rx_input_errors);
+        EC_LOG_RAW("  TX: frames=%u, fragments=%u, bytes=%u, errors=%u, WC retries=%u, last error=%d\n",
+                   stats.tx_frames, stats.tx_fragments, stats.tx_bytes, stats.tx_errors,
+                   stats.tx_wc_retries, stats.tx_last_error);
+        EC_LOG_RAW("  Poll: empty=%u, errors=%u\n", stats.poll_empty, stats.poll_errors);
+        ret = 0;
+        goto out;
+    } else if (argc >= 4 && strcmp(argv[1], "eoe_start") == 0) {
         // ethercat eoe_start -p [slave_idx]
-        struct ec_eoe_ip_param slave_ip_param = { 0 };
-        struct ec_eoe_ip_param master_ip_param = { 0 };
-
-        slave_ip_param.ipv4_addr_str = "192.168.100.10";
-        slave_ip_param.ipv4_mask_str = "255.255.255.0";
-        slave_ip_param.ipv4_gw_str = "192.168.100.1";
-        slave_ip_param.dns_server_str = "192.168.2.1";
-
-        for (uint8_t i = 0; i < 6; i++) {
-            slave_ip_param.mac_addr[i] = i + 0xf0;
-        }
-
-        master_ip_param.ipv4_addr_str = "192.168.100.8";
-        master_ip_param.ipv4_mask_str = "255.255.255.0";
-        master_ip_param.ipv4_gw_str = "192.168.100.1";
-
-        for (uint8_t i = 0; i < 6; i++) {
-            master_ip_param.mac_addr[i] = i;
-        }
-        ret = ec_eoe_start(global_cmd_eoe, global_cmd_master, atoi(argv[3]), &master_ip_param, &slave_ip_param);
+        static const struct ec_eoe_ip_param slave_ip_param = {
+            .ipv4_addr_str = "192.168.100.10",
+            .ipv4_mask_str = "255.255.255.0",
+            .ipv4_gw_str = "192.168.100.1",
+            .dns_server_str = "192.168.2.1",
+            .mac_addr = { 0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5 },
+        };
+        static const struct ec_eoe_ip_param master_ip_param = {
+            .ipv4_addr_str = "192.168.100.8",
+            .ipv4_mask_str = "255.255.255.0",
+            .ipv4_gw_str = "192.168.100.1",
+            .mac_addr = { 0, 1, 2, 3, 4, 5 },
+        };
+        ret = ec_eoe_start(global_cmd_master, atoi(argv[3]),
+                           &master_ip_param, &slave_ip_param);
         if (ret < 0) {
             EC_LOG_RAW("eoe start failed: %d\n", ret);
         } else {

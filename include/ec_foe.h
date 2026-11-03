@@ -10,7 +10,6 @@ typedef int (*foe_write_read_hook_t)(uint32_t offset, uint8_t *data, uint32_t si
 
 int ec_foe_write(ec_master_t *master,
                  uint16_t slave_index,
-                 ec_datagram_t *datagram,
                  const char *filename,
                  uint32_t password,
                  const void *buf,
@@ -19,7 +18,6 @@ int ec_foe_write(ec_master_t *master,
 
 int ec_foe_read(ec_master_t *master,
                 uint16_t slave_index,
-                ec_datagram_t *datagram,
                 const char *filename,
                 uint32_t password,
                 void *buf,

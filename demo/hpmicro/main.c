@@ -29,10 +29,6 @@ SDK_DECLARE_EXT_ISR_M(BOARD_CONSOLE_UART_IRQ, shell_uart_isr)
 
 ATTR_PLACE_AT_FAST_RAM_BSS ec_master_t g_ec_master;
 
-#ifdef CONFIG_EC_EOE
-ATTR_PLACE_AT_FAST_RAM_BSS ec_eoe_t g_ec_eoe;
-#endif
-
 static void task_start(void *param);
 
 int main(void)
@@ -97,9 +93,6 @@ static void task_start(void *param)
     printf("Enable shell uart interrupt\r\n");
 
     ec_master_cmd_init(&g_ec_master);
-#ifdef CONFIG_EC_EOE
-    ec_master_cmd_eoe_init(&g_ec_eoe);
-#endif
     ec_master_init(&g_ec_master, 0);
 
     printf("Exit start task\r\n");
@@ -108,6 +101,42 @@ static void task_start(void *param)
 }
 
 CSH_CMD_EXPORT(ethercat, );
+
+int stack(int argc, const char **argv)
+{
+    (void)argv;
+    if (argc != 1) {
+        printf("Usage: stack\n");
+        return -1;
+    }
+
+    UBaseType_t capacity = uxTaskGetNumberOfTasks() + 4U;
+    TaskStatus_t *tasks = pvPortMalloc(capacity * sizeof(*tasks));
+    if (!tasks) {
+        printf("Failed to allocate task snapshot\n");
+        return -1;
+    }
+
+    UBaseType_t count = uxTaskGetSystemState(tasks, capacity, NULL);
+    if (!count) {
+        vPortFree(tasks);
+        printf("Task list changed; run stack again\n");
+        return -1;
+    }
+
+    printf("%-16s %5s %14s\n", "Task", "Prio", "Min free bytes");
+    for (UBaseType_t i = 0; i < count; i++) {
+        if (tasks[i].eCurrentState == eDeleted || !tasks[i].pcTaskName) {
+            continue;
+        }
+        size_t free_bytes = (size_t)tasks[i].usStackHighWaterMark * sizeof(StackType_t);
+        printf("%-16.16s %5lu %14lu\n", tasks[i].pcTaskName,
+               (unsigned long)tasks[i].uxCurrentPriority, (unsigned long)free_bytes);
+    }
+    vPortFree(tasks);
+    return 0;
+}
+CSH_CMD_EXPORT(stack, show minimum free stack bytes for each task);
 
 // weak api used in ec_cmd.c
 unsigned char cherryecat_eepromdata[2048]; // EEPROM data buffer, please generate by esi_parse.py
@@ -292,9 +321,13 @@ CSH_CMD_EXPORT(position_control, position_control - p<idx><position>);
 
 #ifdef CONFIG_EC_EOE
 #include "tcp_client.h"
+#include "lwip/netif.h"
 int tcp_client(int argc, const char **argv)
 {
-    tcp_client_init(&g_ec_eoe.netif);
+    if (!netif_default) {
+        return -1;
+    }
+    tcp_client_init(netif_default);
     return 0;
 }
 CSH_CMD_EXPORT(tcp_client, );

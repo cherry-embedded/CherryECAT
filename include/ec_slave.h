@@ -6,6 +6,10 @@
 #ifndef EC_SLAVE_H
 #define EC_SLAVE_H
 
+#ifdef CONFIG_EC_EOE
+#include "ec_eoe.h"
+#endif
+
 typedef struct ec_master ec_master_t;
 typedef struct ec_slave ec_slave_t;
 
@@ -103,6 +107,10 @@ typedef struct ec_slave {
     ec_slave_config_t *config; /**< Slave custom configuration. */
 
     ec_datagram_t pdo_datagram; /**< PDO datagram for the slave. */
+
+#ifdef CONFIG_EC_EOE
+    ec_eoe_t eoe; /**< EoE scheduling, frame reassembly and network interface. */
+#endif
 } ec_slave_t;
 
 void ec_slaves_scanning(ec_master_t *master);

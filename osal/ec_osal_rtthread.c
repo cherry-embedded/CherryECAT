@@ -34,6 +34,7 @@ void ec_osal_thread_delete(ec_osal_thread_t thread)
 void ec_osal_thread_suspend(ec_osal_thread_t thread)
 {
     rt_thread_suspend((rt_thread_t)thread);
+    rt_schedule();
 }
 
 void ec_osal_thread_resume(ec_osal_thread_t thread)
