@@ -267,16 +267,15 @@ ec_foe_read
 ec_eoe_start
 --------------------------------
 
-配置主从站 IPv4 并启动 EoE 通信。当前仅支持同一时刻，只能允许一个 EOE 从站通信，并且推荐在 preop 下进行（如果对性能没有要求，则忽视）。
+配置主从站 IPv4 并启动 EoE 通信。设置 IP 和创建网络接口由 EoE 线程完成。
 
 .. code-block:: c
    :linenos:
 
-    int ec_eoe_start(ec_eoe_t *eoe,
-                    ec_master_t *master,
-                    uint16_t slave_index,
-                    struct ec_eoe_ip_param *master_ip_param,
-                    struct ec_eoe_ip_param *slave_ip_param);
+    int ec_eoe_start(ec_master_t *master,
+                     uint16_t slave_index,
+                     const struct ec_eoe_ip_param *master_ip_param,
+                     const struct ec_eoe_ip_param *slave_ip_param);
 
 .. list-table::
     :widths: 10 10
@@ -298,6 +297,7 @@ ec_eoe_start
 .. note::
 
     主站和从站需要在同一个网关下才能通信成功，并且 mac 地址需要不同。
+    ``master_ip_param``、``slave_ip_param`` 及其中的字符串只需在本次调用返回前保持有效。
 
 ec_datagram_init
 --------------------------------

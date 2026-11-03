@@ -107,9 +107,7 @@ ethercat 命令行
 HPMicro IO 示例
 -----------------------
 
-示例支持 HPM IO 从站（VID ``0x0048504D``，PID ``0x00000001`` / ``0x00000005``）。
-当前设备表使用 ``0x1600`` / ``0x1A00`` PDO 映射，主站输出和输入各占 4 字节。
-以下示例假设总线上只有一个 IO 从站，其索引为 0：
+示例支持 HPM IO 从站（VID ``0x0048504D``，PID ``0x00000001`` / ``0x00000002`` / ``0x00000005``）。命令如下：
 
 .. code-block:: text
 
@@ -117,9 +115,8 @@ HPMicro IO 示例
     ethercat pdo_read -p 0
     ethercat stop
 
-``1000`` 表示通信周期为 1000 微秒
-
 HPMicro demo 的 ``ec_pdo_callback`` 在 IO 从站处于 OP 时，将 32 位输入值复制到输出，
+
 核心处理如下：
 
 .. code-block:: c
@@ -139,42 +136,15 @@ HPMicro demo 的 ``ec_pdo_callback`` 在 IO 从站处于 OP 时，将 32 位输�
 HPMicro CIA402 电机示例
 -----------------------
 
-示例支持 HPM CIA402 从站（VID ``0x0048504D``，PID ``0x00000003`` / ``0x00000004``），
-使用设备表中的 8 字节 CSV/CSP PDO 映射。三个命令均通过 ``-p`` 指定从站索引（0 到 31）：
+示例支持 HPM CIA402 从站（VID ``0x0048504D``，PID ``0x00000003`` / ``0x00000004``），支持 CSV / CSP。
 
 - ``motor_control -p <idx> <0|1>``：关闭或使能电机。命令仅更新 enable 变量。回调在 disable 时直接发送 Disable voltage；enable 时才按状态字依次发送 Shutdown、Switch on、Enable operation，遇到 Fault 时发送一次 Fault reset。关闭时保留速度和位置指令。
 - ``speed_control -p <idx> <value>``：设置 CSV 目标速度（0x60FF），支持有符号 32 位整数。
 - ``position_control -p <idx> <value>``：设置 CSP 绝对目标位置（0x607A），支持有符号 32 位整数。
 
-速度和位置使用从站对象字典的原始单位。命令只更新目标值，PDO 读写仍在 ``ec_pdo_callback`` 中完成。
-上电时默认关闭电机，重启周期通信不会清除命令变量；未下发位置指令时，CSP 目标跟随实际位置，避免默认目标为零。
-位置命令直接设置目标，不包含轨迹插补或速度、加速度限制。
+HPMicro demo 的 ``ec_pdo_callback`` 里面负责 CIA402 的运行和停止，以及速度，位置更新。
 
-``ethercat start`` 的模式参数仅选择主站 PDO 映射，不会自动写入从站的 ``0x6060``。
-当前 HPM CIA402 从站的 ``0x6060`` 默认值为 0，选择 ``0x1601`` 或 ``0x1602`` 映射也不会
-自动切换运行模式，因此需要在 PREOP 阶段通过 CoE 写入 ``0x6060:00``：
-
-.. list-table:: CSP / CSV 模式设置
-   :header-rows: 1
-   :widths: 15 25 30 30
-
-   * - 模式
-     - ``start`` 模式参数
-     - RxPDO / TxPDO
-     - ``0x6060:00``
-   * - CSP
-     - 1
-     - ``0x1601`` / ``0x1A01``
-     - 8（``08``）
-   * - CSV
-     - 2
-     - ``0x1602`` / ``0x1A02``
-     - 9（``09``）
-
-``coe_write`` 的 index、subindex、data 均按十六进制解析，``08`` / ``09`` 会作为 1 字节写入。
-启动通信并进入 OP 后，读取 ``0x6061:00`` 确认实际运行模式，再使能电机。
-以下示例假设电机从站索引为 0；如果 IO 从站为 0、电机从站为 1，将电机相关命令中的
-``-p 0`` 改为 ``-p 1``，``ethercat start`` 仍会启动总线上的全部从站。
+在使用 CSV / CSP 时，需要在 preop 模式下设置 ``0x6060`` 工作模式，8 表示 CSV，9 表示 CSP。使用 ``coe_write`` 写入。完成命令如下：
 
 CSV 示例（``0x6060 = 9``，``ethercat start`` 的模式参数为 2）：
 
