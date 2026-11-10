@@ -6,7 +6,7 @@
 #ifndef EC_VERSION_H
 #define EC_VERSION_H
 
-#define CHERRYECAT_VERSION     0x020001
-#define CHERRYECAT_VERSION_STR "v2.0.1"
+#define CHERRYECAT_VERSION     0x030000
+#define CHERRYECAT_VERSION_STR "v3.0.0"
 
 #endif

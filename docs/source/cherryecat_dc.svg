@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+  "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns:xlink="http://www.w3.org/1999/xlink" width="1188pt" height="633.6pt" viewBox="0 0 1188 633.6" xmlns="http://www.w3.org/2000/svg" version="1.1">
+ <metadata>
+  <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+   <cc:Work>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:date>2026-11-10T11:25:24.702310</dc:date>
+    <dc:format>image/svg+xml</dc:format>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Matplotlib v3.9.1, https://matplotlib.org/</dc:title>
+     </cc:Agent>
+    </dc:creator>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <defs>
+  <style type="text/css">*{stroke-linejoin: round; stroke-linecap: butt}</style>
+ </defs>
+ <g id="figure_1">
+  <g id="patch_1">
+   <path d="M 0 633.6 
+L 1188 633.6 
+L 1188 0 
+L 0 0 
+z
+" style="fill: #ffffff"/>
+  </g>
+  <g id="axes_1">
+   <g id="patch_2">
+    <path d="M 184.14 440.352 
+L 1158.3 440.352 
+L 1158.3 123.552 
+L 184.14 123.552 
+z
+" style="fill: #ffffff"/>
+   </g>
+   <g id="line2d_1">
+    <path d="M 199.673303 440.352 
+L 199.673303 123.552 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke-dasharray: 3.7,1.6; stroke-dashoffset: 0; stroke: #c2cdda"/>
+   </g>
+   <g id="line2d_2">
+    <path d="M 643.481959 440.352 
+L 643.481959 123.552 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke-dasharray: 3.7,1.6; stroke-dashoffset: 0; stroke: #c2cdda"/>
+   </g>
+   <g id="line2d_3">
+    <path d="M 1087.290615 440.352 
+L 1087.290615 123.552 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke-dasharray: 3.7,1.6; stroke-dashoffset: 0; stroke: #c2cdda"/>
+   </g>
+   <g id="LineCollection_1">
+    <path d="M 199.673303 228.119237 
+L 1131.671481 228.119237 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #dce3ec; stroke-width: 2"/>
+   </g>
+   <g id="LineCollection_2">
+    <path d="M 199.673303 321.067892 
+L 1131.671481 321.067892 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #dce3ec; stroke-width: 2"/>
+   </g>
+   <g id="LineCollection_3">
+    <path d="M 199.673303 406.270826 
+L 1131.671481 406.270826 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #dce3ec; stroke-width: 2"/>
+   </g>
+   <g id="matplotlib.axis_1">
+    <g id="xtick_1">
+     <g id="line2d_4">
+      <defs>
+       <path id="m185b93bc31" d="M 0 0 
+L 0 3.5 
+" style="stroke: #000000; stroke-width: 0.8"/>
+      </defs>
+      <g>
+       <use xlink:href="#m185b93bc31" x="199.673303" y="440.352" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_1">
+      <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="199.673303" y="456.107312" transform="rotate(-0 199.673303 456.107312)">0</text>
+     </g>
+    </g>
+    <g id="xtick_2">
+     <g id="line2d_5">
+      <g>
+       <use xlink:href="#m185b93bc31" x="554.720228" y="440.352" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_2">
+      <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="554.720228" y="456.107312" transform="rotate(-0 554.720228 456.107312)">800</text>
+     </g>
+    </g>
+    <g id="xtick_3">
+     <g id="line2d_6">
+      <g>
+       <use xlink:href="#m185b93bc31" x="643.481959" y="440.352" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_3">
+      <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="643.481959" y="456.107312" transform="rotate(-0 643.481959 456.107312)">1000</text>
+     </g>
+    </g>
+    <g id="xtick_4">
+     <g id="line2d_7">
+      <g>
+       <use xlink:href="#m185b93bc31" x="998.528884" y="440.352" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_4">
+      <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="998.528884" y="456.107312" transform="rotate(-0 998.528884 456.107312)">1800</text>
+     </g>
+    </g>
+    <g id="xtick_5">
+     <g id="line2d_8">
+      <g>
+       <use xlink:href="#m185b93bc31" x="1087.290615" y="440.352" style="stroke: #000000; stroke-width: 0.8"/>
+      </g>
+     </g>
+     <g id="text_5">
+      <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="1087.290615" y="456.107312" transform="rotate(-0 1087.290615 456.107312)">2000</text>
+     </g>
+    </g>
+    <g id="text_6">
+     <text style="font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="671.22" y="477.722625" transform="rotate(-0 671.22 477.722625)">相对任一稳态周期边界的时间（μs）；x 为变量，绘制位置仅作示意，不是实测值</text>
+    </g>
+   </g>
+   <g id="matplotlib.axis_2">
+    <g id="ytick_1">
+     <g id="line2d_9"/>
+     <g id="text_7">
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(112.14 226.898925)">主站周期函数</text>
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(25.599375 238.9208)">蓝：回调；灰：其他处理共 20 μs</text>
+     </g>
+    </g>
+    <g id="ytick_2">
+     <g id="line2d_10"/>
+     <g id="text_8">
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(102.14 319.92258)">主站通信反馈点</text>
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(81.129062 331.764455)">FRMW 参考时钟采样</text>
+     </g>
+    </g>
+    <g id="ytick_3">
+     <g id="line2d_11"/>
+     <g id="text_9">
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(99.47125 405.125514)">全部从站 SYNC0</text>
+      <text style="font: 10px 'Noto Sans CJK JP'" transform="translate(74.349375 416.967389)">相移 0，落在周期边界</text>
+     </g>
+    </g>
+   </g>
+   <g id="line2d_12">
+    <defs>
+     <path id="m39d361e0fe" d="M -0 4.5 
+L 4.5 -4.5 
+L -4.5 -4.5 
+z
+" style="stroke: #245edb; stroke-linejoin: miter"/>
+    </defs>
+    <g clip-path="url(#p5fb9ea5b59)">
+     <use xlink:href="#m39d361e0fe" x="554.720228" y="321.067892" style="fill: #245edb; stroke: #245edb; stroke-linejoin: miter"/>
+    </g>
+   </g>
+   <g id="line2d_13">
+    <path d="M 638.156255 406.270826 
+L 638.156255 379.935374 
+L 648.807663 379.935374 
+L 648.807663 406.270826 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #dc731b; stroke-width: 2.5; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_14">
+    <g clip-path="url(#p5fb9ea5b59)">
+     <use xlink:href="#m39d361e0fe" x="998.528884" y="321.067892" style="fill: #245edb; stroke: #245edb; stroke-linejoin: miter"/>
+    </g>
+   </g>
+   <g id="line2d_15">
+    <path d="M 1081.964911 406.270826 
+L 1081.964911 379.935374 
+L 1092.616319 379.935374 
+L 1092.616319 406.270826 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #dc731b; stroke-width: 2.5; stroke-linecap: square"/>
+   </g>
+   <g id="line2d_16">
+    <path d="M 199.673303 406.270826 
+L 199.673303 379.935374 
+L 209.437093 379.935374 
+L 209.437093 406.270826 
+" clip-path="url(#p5fb9ea5b59)" style="fill: none; stroke: #8795a8; stroke-width: 2; stroke-linecap: square"/>
+   </g>
+   <g id="patch_3">
+    <path d="M 184.14 440.352 
+L 1158.3 440.352 
+" style="fill: none; stroke: #aebaca; stroke-width: 0.8; stroke-linejoin: miter; stroke-linecap: square"/>
+   </g>
+   <g id="patch_4">
+    <path d="M 279.558861 245.159824 
+L 283.996948 245.159824 
+L 283.996948 211.07865 
+L 279.558861 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #8795a8"/>
+   </g>
+   <g id="patch_5">
+    <path d="M 283.996948 245.159824 
+L 550.282141 245.159824 
+L 550.282141 211.07865 
+L 283.996948 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #245edb"/>
+   </g>
+   <g id="patch_6">
+    <path d="M 550.282141 245.159824 
+L 554.720228 245.159824 
+L 554.720228 211.07865 
+L 550.282141 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #8795a8"/>
+   </g>
+   <g id="text_10">
+    <text style="fill: #ffffff; font: 11px 'Noto Sans CJK JP'" transform="translate(370.966185 224.724018)">全部 PDO callback</text>
+    <text style="fill: #ffffff; font: 11px 'Noto Sans CJK JP'" transform="translate(372.539701 237.750081)">Pmax = 780 μs − x</text>
+   </g>
+   <g id="patch_7">
+    <path d="M 279.558861 180.544699 
+Q 279.558861 192.487826 279.558861 202.753902 
+" style="fill: none; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 281.758861 198.353902 
+L 279.558861 202.753902 
+L 277.358861 198.353902 
+z
+" style="fill: #7256b2; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_11">
+    <text style="fill: #7256b2; font: 11px 'Noto Sans CJK JP'" transform="translate(276.820033 160.873126)">x</text>
+    <text style="fill: #7256b2; font: 11px 'Noto Sans CJK JP'" transform="translate(246.558861 173.899188)">周期函数进入</text>
+   </g>
+   <g id="text_12">
+    <text style="fill: #172c48; font: 10px 'Noto Sans CJK JP'" transform="translate(560.045932 196.138487)">800 μs</text>
+    <text style="fill: #172c48; font: 10px 'Noto Sans CJK JP'" transform="translate(560.045932 207.980362)">通信窗口截止</text>
+   </g>
+   <g id="text_13">
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'" transform="translate(562.708784 299.15658)">800 μs</text>
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'" transform="translate(562.708784 310.998455)">FRMW 采样目标</text>
+   </g>
+   <g id="text_14">
+    <text style="fill: #dc731b; font: 11px 'Noto Sans CJK JP'; text-anchor: start" x="654.577175" y="399.299677" transform="rotate(-0 654.577175 399.299677)">1000 μs</text>
+   </g>
+   <g id="patch_8">
+    <path d="M 723.367517 245.159824 
+L 727.805604 245.159824 
+L 727.805604 211.07865 
+L 723.367517 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #8795a8"/>
+   </g>
+   <g id="patch_9">
+    <path d="M 727.805604 245.159824 
+L 994.090797 245.159824 
+L 994.090797 211.07865 
+L 727.805604 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #245edb"/>
+   </g>
+   <g id="patch_10">
+    <path d="M 994.090797 245.159824 
+L 998.528884 245.159824 
+L 998.528884 211.07865 
+L 994.090797 211.07865 
+z
+" clip-path="url(#p5fb9ea5b59)" style="fill: #8795a8"/>
+   </g>
+   <g id="text_15">
+    <text style="fill: #ffffff; font: 11px 'Noto Sans CJK JP'" transform="translate(814.774841 224.724018)">全部 PDO callback</text>
+    <text style="fill: #ffffff; font: 11px 'Noto Sans CJK JP'" transform="translate(816.348357 237.750081)">Pmax = 780 μs − x</text>
+   </g>
+   <g id="patch_11">
+    <path d="M 723.367517 180.544699 
+Q 723.367517 192.487826 723.367517 202.753902 
+" style="fill: none; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 725.567517 198.353902 
+L 723.367517 202.753902 
+L 721.167517 198.353902 
+z
+" style="fill: #7256b2; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_16">
+    <text style="fill: #7256b2; font: 11px 'Noto Sans CJK JP'" transform="translate(695.641501 160.873126)">x + 1000 μs</text>
+    <text style="fill: #7256b2; font: 11px 'Noto Sans CJK JP'" transform="translate(690.367517 173.899188)">周期函数进入</text>
+   </g>
+   <g id="text_17">
+    <text style="fill: #172c48; font: 10px 'Noto Sans CJK JP'" transform="translate(1003.854588 196.138487)">1800 μs</text>
+    <text style="fill: #172c48; font: 10px 'Noto Sans CJK JP'" transform="translate(1003.854588 207.980362)">通信窗口截止</text>
+   </g>
+   <g id="text_18">
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'" transform="translate(1006.51744 299.15658)">1800 μs</text>
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'" transform="translate(1006.51744 310.998455)">FRMW 采样目标</text>
+   </g>
+   <g id="text_19">
+    <text style="fill: #dc731b; font: 11px 'Noto Sans CJK JP'; text-anchor: start" x="1098.385831" y="399.299677" transform="rotate(-0 1098.385831 399.299677)">2000 μs</text>
+   </g>
+   <g id="text_20">
+    <text style="fill: #8795a8; font: 10px 'Noto Sans CJK JP'" transform="translate(217.425649 386.68323)">0 μs</text>
+    <text style="fill: #8795a8; font: 10px 'Noto Sans CJK JP'" transform="translate(217.425649 398.525105)">上一 SYNC0</text>
+   </g>
+   <g id="patch_12">
+    <path d="M 283.237033 138.26887 
+Q 501.46433 138.26887 719.691627 138.26887 
+" style="fill: none; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 287.637033 140.46887 
+L 283.237033 138.26887 
+L 287.637033 136.06887 
+" style="fill: none; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 715.291627 136.06887 
+L 719.691627 138.26887 
+L 715.291627 140.46887 
+" style="fill: none; stroke: #7256b2; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_21">
+    <text style="fill: #7256b2; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="501.463189" y="130.556241" transform="rotate(-0 501.463189 130.556241)">相邻进入间隔 ≈ 1000 μs</text>
+   </g>
+   <g id="patch_13">
+    <path d="M 283.238658 195.587208 
+Q 417.142665 195.587208 551.046671 195.587208 
+" style="fill: none; stroke: #172c48; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 287.638658 197.787208 
+L 283.238658 195.587208 
+L 287.638658 193.387208 
+" style="fill: none; stroke: #172c48; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 546.646671 193.387208 
+L 551.046671 195.587208 
+L 546.646671 197.787208 
+" style="fill: none; stroke: #172c48; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_22">
+    <text style="fill: #172c48; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="417.139544" y="187.874578" transform="rotate(-0 417.139544 187.874578)">本轮处理窗口：800 μs − x</text>
+   </g>
+   <g id="patch_14">
+    <path d="M 558.399077 269.946132 
+Q 599.102485 269.946132 639.805892 269.946132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 562.799077 272.146132 
+L 558.399077 269.946132 
+L 562.799077 267.746132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 635.405892 267.746132 
+L 639.805892 269.946132 
+L 635.405892 272.146132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_23">
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="599.101093" y="262.233502" transform="rotate(-0 599.101093 262.233502)">预留提前量 200 μs</text>
+   </g>
+   <g id="patch_15">
+    <path d="M 1002.207733 269.946132 
+Q 1042.911141 269.946132 1083.614548 269.946132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 1006.607733 272.146132 
+L 1002.207733 269.946132 
+L 1006.607733 267.746132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 1079.214548 267.746132 
+L 1083.614548 269.946132 
+L 1079.214548 272.146132 
+" style="fill: none; stroke: #245edb; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_24">
+    <text style="fill: #245edb; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="1042.909749" y="262.233502" transform="rotate(-0 1042.909749 262.233502)">预留提前量 200 μs</text>
+   </g>
+   <g id="patch_16">
+    <path d="M 647.160131 358.247355 
+Q 865.387428 358.247355 1083.614725 358.247355 
+" style="fill: none; stroke: #dc731b; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 651.560131 360.447355 
+L 647.160131 358.247355 
+L 651.560131 356.047355 
+" style="fill: none; stroke: #dc731b; stroke-width: 1.5; stroke-linecap: round"/>
+    <path d="M 1079.214725 356.047355 
+L 1083.614725 358.247355 
+L 1079.214725 360.447355 
+" style="fill: none; stroke: #dc731b; stroke-width: 1.5; stroke-linecap: round"/>
+   </g>
+   <g id="text_25">
+    <text style="fill: #dc731b; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="865.386287" y="350.534725" transform="rotate(-0 865.386287 350.534725)">SYNC0 周期 1000 μs</text>
+   </g>
+  </g>
+  <g id="text_26">
+   <text style="fill: #172c48; font: 700 20px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="38.7424" transform="rotate(-0 594 38.7424)">CherryECAT：从站 shift time = 0 的稳态时序</text>
+  </g>
+  <g id="text_27">
+   <text style="fill: #172c48; font: 12px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="54.4896" transform="rotate(-0 594 54.4896)">周期 T = 1000 μs；所有从站相移为 0；主站提前量 200 μs；主站周期函数进入时刻为 x。</text>
+  </g>
+  <g id="text_28">
+   <text style="fill: #8795a8; font: 11px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="82.368" transform="rotate(-0 594 82.368)">假设：整个 ec_master_period_process() 除全部 PDO callback 外，其他处理总耗时为 20 μs。</text>
+  </g>
+  <g id="text_29">
+   <text style="fill: #dc731b; font: 12px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="510.048" transform="rotate(-0 594 510.048)">800 μs 的通信对应下一次 1000 μs 的 SYNC0，而不是已经过去的 0 μs SYNC0。</text>
+  </g>
+  <g id="text_30">
+   <text style="fill: #245edb; font: 12px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="540.4608" transform="rotate(-0 594 540.4608)">给定本轮进入时刻 x：Pmax = 1000 − 200 − x − 20 = 780 μs − x。实际预算应低于此理论值。</text>
+  </g>
+  <g id="text_31">
+   <text style="fill: #8795a8; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="568.3392" transform="rotate(-0 594 568.3392)">此式按图示 0～1000 μs 窗口计算，结果须为正；不是把从站相移 0 直接代入而得到负预算。</text>
+  </g>
+  <g id="text_32">
+   <text style="fill: #8795a8; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="592.416" transform="rotate(-0 594 592.416)">灰色两段仅示意其他处理可分布在回调前后，总计 20 μs；图示将窗口末端与 FRMW 采样目标对齐。</text>
+  </g>
+  <g id="text_33">
+   <text style="fill: #8795a8; font: 10px 'Noto Sans CJK JP'; text-anchor: middle" x="594" y="617.1264" transform="rotate(-0 594 617.1264)">PI 重新锁相后 x 可改变；未计入的 MAC/链路偏移、从站准备和抖动须另留余量。图示为稳态，不是上电启动过程。</text>
+  </g>
+ </g>
+ <defs>
+  <clipPath id="p5fb9ea5b59">
+   <rect x="184.14" y="123.552" width="974.16" height="316.8"/>
+  </clipPath>
+ </defs>
+</svg>

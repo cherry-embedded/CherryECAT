@@ -29,12 +29,13 @@ ethercat 命令行
 - **ethercat slaves**: 查看从站信息，使用 `-p` 参数选择指定从站，使用 `-v` 参数查看详细信息
 - **ethercat pdos**: 查看 PDO 映射信息，使用 `-p` 参数选择指定从站
 - **ethercat states**: 请求从站状态转换， 使用 `-p` 参数选择指定从站，状态需要从 `ec_slave_state_t` 枚举中选择并以十六进制输入
+- **ethercat pdo_read -p <idx>**: 读取指定从站的输入和输出 PDO 十六进制数据，索引从 0 开始。需先启动主站，命令直接从 PDO 映射地址分别打印输出 RxPDO 和输入 TxPDO，不复制到临时缓冲区。
 - **ethercat coe_read**: 通过 CoE 读取 SDO, 使用 `-p` 参数选择指定从站，后续参数依次为 index, subindex, 如果忽略 subindex 则使用 sdo complete 模式
 - **ethercat coe_write**: 通过 CoE 写入 SDO，使用 `-p` 参数选择指定从站，后续参数依次为 index, subindex, data，不使用 sdo complete 模式
 - **ethercat foe_read**: 通过 FoE 读取文件, 使用 `-p` 参数选择指定从站，后续参数依次为 filename, pwd 和 16进制数组，数组从低位到高位输入
 - **ethercat foe_write**: 通过 FoE 写入文件，使用 `-p` 参数选择指定从站，后续参数依次为 filename, pwd 和 16进制数组，数组从低位到高位输入
 - **ethercat eoe_start**: 启动 EoE 功能
-- **ethercat pdo_read -p <idx>**: 读取指定从站的输入和输出 PDO 十六进制数据，索引从 0 开始。需先启动主站，命令直接从 PDO 映射地址分别打印输出 RxPDO 和输入 TxPDO，不复制到临时缓冲区。
+- **ethercat eoe_stats**: 查看 EoE 统计信息
 - **ethercat sii_read**: 读取 SII 数据， 使用 `-p` 参数选择指定从站
 - **ethercat sii_write**: 写入 SII 数据， 使用 `-p` 参数选择指定从站
 - **ethercat wc**: 查看主站工作计数器
@@ -76,7 +77,7 @@ ethercat 命令行
         slave_config[i].dc_assign_activate = 0x300;
 
         slave_config[i].dc_sync[0].cycle_time = atoi(argv[1]) * 1000;
-        slave_config[i].dc_sync[0].shift_time = 1000000;
+        slave_config[i].dc_sync[0].shift_time = 0;
         slave_config[i].dc_sync[1].cycle_time = 0;
         slave_config[i].dc_sync[1].shift_time = 0;
         slave_config[i].pdo_callback = ec_pdo_callback;
@@ -89,10 +90,14 @@ ethercat 命令行
 - 配置主站 master 相关参数，包括 `cycle_time`、 `shift_time`、 `dc_sync_with_dc_ref_enable` 等
 
   - `cycle_time` 代表主站定时器的周期，单位为纳秒。
-  - `shift_time` 代表相对于 cycle_time 的滞后时间，单位为纳秒，通常设置为 20% 的 cycle_time。
+  - `shift_time` 代表相对于 cycle_time 的提前时间，单位为纳秒，通常设置为 20% 的 cycle_time。 **主站 PDO 处理需要在这个时间内完成**
   - `dc_sync_with_dc_ref_enable` 代表 DC 同步是与主站时钟同步还是和第一个带有 DC 的从站同步。通常推荐和从站同步。
 
-- 最后调用 `ec_master_start` 启动周期性传输，如果从站没有扫描就调用，则会一直死等，直到所有从站扫描完成。
+下图展示了以上参数的关系，和参考从站同步：
+
+.. figure:: cherryecat_dc.svg
+
+- 最后调用 `ec_master_start` 启动周期性传输，如果从站没有扫描就调用则会直接退出。
 
 .. code-block:: c
    :linenos:

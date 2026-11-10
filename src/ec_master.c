@@ -741,7 +741,7 @@ EC_FAST_CODE_SECTION void ec_master_dc_sync_with_pi(ec_master_t *master, uint64_
     if (delta < 0) {
         master->dc_sync_integral--;
     }
-    *offsettime = -(delta / 100) - (master->dc_sync_integral / 20); // Kp = 0.1f, Ki = 0.05f
+    *offsettime = -(delta / 100) - (master->dc_sync_integral / 20); // Kp = 0.01f, Ki = 0.05f
 }
 
 EC_FAST_CODE_SECTION void ec_master_period_process(void *arg)

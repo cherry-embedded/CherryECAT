@@ -85,11 +85,11 @@ static void ec_master_cmd_show_help(void)
     EC_LOG_RAW("  slaves -v                                      Show detailed information for all slaves\n");
     EC_LOG_RAW("  slaves -p <idx>                                Show information for slave <idx>\n");
     EC_LOG_RAW("  slaves -p <idx> -v                             Show detailed information for slave <idx>\n");
-    EC_LOG_RAW("  pdo_read -p <idx>                              Read slave input and output process data\n");
     EC_LOG_RAW("  pdos                                           Show PDOs for all slaves\n");
     EC_LOG_RAW("  pdos -p <idx>                                  Show PDOs for slave <idx>\n");
     EC_LOG_RAW("  states <state>                                 Request state for all slaves (hex)\n");
     EC_LOG_RAW("  states -p <idx> <state>                        Request state for slave <idx> (hex)\n");
+    EC_LOG_RAW("  pdo_read -p <idx>                              Read slave input and output process data\n");
     EC_LOG_RAW("  coe_read -p [idx] [index] [subindex]           Read SDO via CoE\n");
     EC_LOG_RAW("  coe_write -p [idx] [index] [subindex] [data]   Write SDO via CoE\n");
 #ifdef CONFIG_EC_FOE
@@ -557,7 +557,7 @@ int ethercat(int argc, const char **argv)
             slave_config[i].dc_assign_activate = 0x300;
 
             slave_config[i].dc_sync[0].cycle_time = atoi(argv[2]) * 1000;
-            slave_config[i].dc_sync[0].shift_time = slave_config[i].dc_sync[0].cycle_time * 0.6f;
+            slave_config[i].dc_sync[0].shift_time = 0;
             slave_config[i].dc_sync[1].cycle_time = 0;
             slave_config[i].dc_sync[1].shift_time = 0;
             slave_config[i].pdo_callback = ec_pdo_callback;

@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="811" height="681" viewBox="-1 -1 682 572" role="img" style="background-color: rgb(47, 47, 54);">
+<title>CherryECAT 架构</title>
+<desc>CherryECAT 整体外框，自上而下为 Application、CoE/FoE/EoE 与 PDO、mailbox thread 与 scan thread、nonperiod thread 与 period timer、netdev、各平台 port。方框为空心，仅描边着色。</desc>
+<style>
+.h{font-family:'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif;font-size:15px;font-weight:500}
+.s{font-family:'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif;font-size:14px}
+.tt{font-family:'Noto Sans CJK SC','Microsoft YaHei','PingFang SC',sans-serif;font-size:20px;font-weight:500}
+</style>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+
+<rect x="-1" y="-1" width="682" height="572" fill="#2F2F36"/>
+<rect x="0" y="0" width="680" height="570" fill="none" stroke="#FF3333" stroke-width="1.2"/>
+<rect x="0" y="0" width="680" height="52" fill="#C43F3F"/>
+<text class="tt" x="340" y="26" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">CherryECAT</text>
+
+<rect x="40" y="78" width="600" height="48" fill="#2F2F36" stroke="#C43F3F" stroke-width="1.5"/>
+<text class="h" x="340" y="102" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">Application</text>
+
+<path d="M340 126 V140 M100 140 L574 140" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<line x1="100" y1="140" x2="100" y2="158" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="232" y1="140" x2="232" y2="158" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="364" y1="140" x2="364" y2="158" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="466" y1="140" x2="466" y2="158" stroke="#8C8C8C" stroke-width="1" stroke-dasharray="2 2"/>
+<line x1="574" y1="140" x2="574" y2="158" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+
+<rect x="40" y="158" width="120" height="48" fill="#2F2F36" stroke="#D4537E" stroke-width="1.5"/>
+<text class="h" x="100" y="182" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">CoE</text>
+<rect x="172" y="158" width="120" height="48" fill="#2F2F36" stroke="#D4537E" stroke-width="1.5"/>
+<text class="h" x="232" y="182" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">FoE</text>
+<rect x="304" y="158" width="120" height="48" fill="#2F2F36" stroke="#D4537E" stroke-width="1.5"/>
+<text class="h" x="364" y="182" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">EoE</text>
+<rect x="436" y="158" width="60" height="48" fill="none" stroke="#8C8C8C" stroke-width="1" stroke-dasharray="3 2"/>
+<text class="h" x="466" y="182" fill="#B4B2A9" text-anchor="middle" dominant-baseline="central">...</text>
+<rect x="508" y="158" width="132" height="48" fill="#2F2F36" stroke="#D4537E" stroke-width="1.5"/>
+<text class="h" x="574" y="182" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">PDO</text>
+
+<path d="M100 206 L100 222 M232 206 L232 222 M364 206 L364 222 M466 206 L466 222 M100 222 L466 222" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<line x1="190" y1="222" x2="190" y2="238" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<path d="M640 182 L660 182 L660 357 L646 357" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<line x1="646" y1="357" x2="641" y2="357" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+
+<rect x="40" y="238" width="300" height="58" fill="#2F2F36" stroke="#658CB8" stroke-width="1.5"/>
+<text class="h" x="190" y="267" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">mailbox thread</text>
+
+<rect x="352" y="238" width="288" height="58" fill="#2F2F36" stroke="#658CB8" stroke-width="1.5"/>
+<text class="h" x="496" y="267" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">scan thread</text>
+
+<path d="M190 296 L190 312 M496 296 L496 312 M190 312 L496 312" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<line x1="190" y1="312" x2="190" y2="328" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="496" y1="312" x2="496" y2="328" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+
+<rect x="40" y="328" width="300" height="58" fill="#2F2F36" stroke="#5DCAA5" stroke-width="1.5"/>
+<text class="h" x="190" y="357" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">nonperiod thread</text>
+
+<rect x="352" y="328" width="288" height="58" fill="#2F2F36" stroke="#5DCAA5" stroke-width="1.5"/>
+<text class="h" x="496" y="357" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">period timer</text>
+
+<line x1="190" y1="386" x2="190" y2="418" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="496" y1="386" x2="496" y2="418" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+
+<rect x="40" y="418" width="600" height="48" fill="#2F2F36" stroke="#937AB3" stroke-width="1.5"/>
+<text class="h" x="340" y="442" fill="#F0F0F0" text-anchor="middle" dominant-baseline="central">netdev</text>
+
+<path d="M340 466 L340 482 M110 482 L569 482" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<line x1="110" y1="482" x2="110" y2="498" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="263" y1="482" x2="263" y2="498" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="416" y1="482" x2="416" y2="498" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+<line x1="569" y1="482" x2="569" y2="498" stroke="#8C8C8C" stroke-width="1" marker-end="url(#arrow)"/>
+
+<rect x="40" y="498" width="140" height="48" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<text class="s" x="110" y="522" fill="#C9C9C9" text-anchor="middle" dominant-baseline="central">HPM</text>
+<rect x="193" y="498" width="140" height="48" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<text class="s" x="263" y="522" fill="#C9C9C9" text-anchor="middle" dominant-baseline="central">STM32H7</text>
+<rect x="346" y="498" width="140" height="48" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<text class="s" x="416" y="522" fill="#C9C9C9" text-anchor="middle" dominant-baseline="central">Renesas</text>
+<rect x="499" y="498" width="141" height="48" fill="none" stroke="#8C8C8C" stroke-width="1"/>
+<text class="s" x="569" y="522" fill="#C9C9C9" text-anchor="middle" dominant-baseline="central">...</text>
+</svg>

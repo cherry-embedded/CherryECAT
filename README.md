@@ -9,6 +9,8 @@
 
 CherryECAT is a tiny and beautiful, high real-time and low-jitter EtherCAT master stack, specially designed for MCUs running with RTOS.
 
+![CherryECAT](CherryECAT.svg)
+
 ## Feature
 
 - **RTOS only, do not support Linux and windows** (designed to contrast with the latter)

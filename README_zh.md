@@ -9,6 +9,8 @@
 
 CherryECAT 是一个小而美的、高实时性、低抖动的 EtherCAT 主机协议栈，专为跑在 RTOS 下的 MCU 设计。
 
+![CherryECAT](CherryECAT.svg)
+
 ## 特性
 
 - **RTOS only, 不支持 Linux 和 windows** （为了和后者对比而设计）
